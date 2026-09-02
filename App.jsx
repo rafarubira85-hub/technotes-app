@@ -22,27 +22,18 @@ export default function App() {
   const [isCompleteNoteOpen, setIsCompleteNoteOpen] = useState(false);
   const [noteToComplete, setNoteToComplete] = useState(null);
 
-  // Estados de carga
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-
   // Cargar lista de clientes
   const fetchClients = async () => {
     try {
-      setLoading(true);
       const res = await fetch('/api/clients');
-      if (!res.ok) throw new Error('Error al cargar la lista de clientes');
+      if (!res.ok) throw new Error('Error al cargar clientes');
       const data = await res.json();
       setClients(data);
-
       if (data.length > 0 && !selectedClientId) {
         setSelectedClientId(data[0].id);
       }
     } catch (err) {
       console.error(err);
-      setError(err.message);
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -51,7 +42,7 @@ export default function App() {
     if (!id) return;
     try {
       const res = await fetch(`/api/clients/${id}`);
-      if (!res.ok) throw new Error('Error al obtener detalle del cliente');
+      if (!res.ok) throw new Error('Error al obtener detalle');
       const data = await res.json();
       setSelectedClient(data);
     } catch (err) {
@@ -71,7 +62,7 @@ export default function App() {
     }
   }, [selectedClientId]);
 
-  // Manejar creación de nuevo cliente
+  // Guardar nuevo cliente
   const handleAddClient = async (clientData) => {
     const res = await fetch('/api/clients', {
       method: 'POST',
@@ -79,13 +70,12 @@ export default function App() {
       body: JSON.stringify(clientData),
     });
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Error al guardar cliente');
-
+    if (!res.ok) throw new Error(data.error || 'Error al crear cliente');
     await fetchClients();
     setSelectedClientId(data.id);
   };
 
-  // Manejar actualización de cliente existente
+  // Actualizar cliente
   const handleUpdateClient = async (clientId, updatedData) => {
     const res = await fetch(`/api/clients/${clientId}`, {
       method: 'PUT',
@@ -93,11 +83,25 @@ export default function App() {
       body: JSON.stringify(updatedData),
     });
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Error al actualizar cliente');
-
+    if (!res.ok) throw new Error(data.error || 'Error al actualizar');
     await fetchClients();
     if (selectedClientId === clientId) {
       await fetchClientDetail(clientId);
+    }
+  };
+
+  // Eliminar cliente
+  const handleDeleteClient = async (client) => {
+    if (!window.confirm(`¿Está seguro de eliminar el cliente "${client.name}"? Se borrarán también todos sus avisos.`)) return;
+    try {
+      const res = await fetch(`/api/clients/${client.id}`, { method: 'DELETE' });
+      if (res.ok) {
+        setSelectedClientId(null);
+        setSelectedClient(null);
+        await fetchClients();
+      }
+    } catch (err) {
+      console.error('Error al eliminar cliente:', err);
     }
   };
 
@@ -106,7 +110,7 @@ export default function App() {
     setIsEditClientOpen(true);
   };
 
-  // Manejar creación de nueva nota/aviso
+  // Guardar nota
   const handleAddNote = async (noteData) => {
     const res = await fetch('/api/notes', {
       method: 'POST',
@@ -115,7 +119,6 @@ export default function App() {
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Error al guardar nota');
-
     await fetchClients();
     if (selectedClientId === noteData.client_id) {
       await fetchClientDetail(noteData.client_id);
@@ -127,7 +130,7 @@ export default function App() {
     setIsAddNoteOpen(true);
   };
 
-  // Manejar resolución de nota
+  // Resolver nota
   const handleCompleteNote = async (noteId, completionData) => {
     const res = await fetch(`/api/notes/${noteId}/complete`, {
       method: 'PUT',
@@ -135,8 +138,7 @@ export default function App() {
       body: JSON.stringify(completionData),
     });
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Error al completar la nota');
-
+    if (!res.ok) throw new Error(data.error || 'Error al completar nota');
     await fetchClients();
     if (selectedClientId) {
       await fetchClientDetail(selectedClientId);
@@ -171,7 +173,6 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-slate-100 flex flex-col font-sans">
-      
       <Header
         onOpenAddClient={() => setIsAddClientOpen(true)}
         totalClients={clients.length}
@@ -179,7 +180,6 @@ export default function App() {
       />
 
       <main className="max-w-7xl w-full mx-auto p-3 md:p-6 flex-1 grid grid-cols-1 md:grid-cols-12 gap-4">
-        
         <div className={`md:col-span-5 lg:col-span-4 ${selectedClientId ? 'hidden md:block' : 'block'}`}>
           <ClientList
             clients={clients}
@@ -198,10 +198,10 @@ export default function App() {
             onReopenNote={handleReopenNote}
             onDeleteNote={handleDeleteNote}
             onOpenEditClient={handleOpenEditClient}
+            onDeleteClient={handleDeleteClient}
             onBack={() => setSelectedClientId(null)}
           />
         </div>
-
       </main>
 
       <AddClientModal
@@ -231,7 +231,6 @@ export default function App() {
         note={noteToComplete}
         onCompleteNote={handleCompleteNote}
       />
-
     </div>
   );
 }

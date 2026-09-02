@@ -10,7 +10,7 @@
 }
 
 /* Touch friendly custom scrollbars */
-::-webkit-scrollbar {
+<script type="module" src="./main.jsx"></script>
   width: 6px;
   height: 6px;
 }

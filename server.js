@@ -18,7 +18,7 @@ initDB();
 
 // --- RUTAS API DE CLIENTES ---
 
-// Obtener todos los clientes (con conteo de avisos pendientes)
+// Obtener todos los clientes (con conteo de avisos pendientes) - Orden alfabético estable
 app.get('/api/clients', (req, res) => {
   try {
     const { q } = req.query;
@@ -38,7 +38,7 @@ app.get('/api/clients', (req, res) => {
       params.push(term, term, term, term);
     }
 
-    query += ` GROUP BY c.id ORDER BY urgent_notes_count DESC, pending_notes_count DESC, c.name ASC`;
+    query += ` GROUP BY c.id ORDER BY c.name ASC`;
 
     const clients = db.prepare(query).all(...params);
     res.json(clients);

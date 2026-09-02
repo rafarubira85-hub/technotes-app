@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Building2, MapPin, Phone, User, Wrench, Save } from 'lucide-react';
+import { X, Building2, MapPin, Phone, User, Save } from 'lucide-react';
 
 export default function AddClientModal({ isOpen, onClose, onSubmitClient }) {
   const [name, setName] = useState('');
@@ -7,7 +7,6 @@ export default function AddClientModal({ isOpen, onClose, onSubmitClient }) {
   const [address, setAddress] = useState('');
   const [phone, setPhone] = useState('');
   const [contactPerson, setContactPerson] = useState('');
-  const [equipmentInfo, setEquipmentInfo] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
 
@@ -30,16 +29,14 @@ export default function AddClientModal({ isOpen, onClose, onSubmitClient }) {
         address: address.trim(),
         phone: phone.trim(),
         contact_person: contactPerson.trim(),
-        equipment_info: equipmentInfo.trim(),
+        equipment_info: '',
       });
 
-      // Resetear
       setName('');
       setCode('');
       setAddress('');
       setPhone('');
       setContactPerson('');
-      setEquipmentInfo('');
       onClose();
     } catch (err) {
       setError(err.message || 'Error al guardar el cliente');
@@ -52,7 +49,6 @@ export default function AddClientModal({ isOpen, onClose, onSubmitClient }) {
     <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-xl max-w-lg w-full overflow-hidden border border-slate-200">
         
-        {/* Header */}
         <div className="bg-sky-700 text-white p-4 flex items-center justify-between">
           <div className="flex items-center space-x-2">
             <Building2 className="w-5 h-5 text-sky-200" />
@@ -66,7 +62,6 @@ export default function AddClientModal({ isOpen, onClose, onSubmitClient }) {
           </button>
         </div>
 
-        {/* Formulario */}
         <form onSubmit={handleSubmit} className="p-5 space-y-3.5 text-xs md:text-sm">
           {error && (
             <div className="bg-rose-50 text-rose-700 p-3 rounded-lg border border-rose-200 text-xs font-semibold">
@@ -141,20 +136,6 @@ export default function AddClientModal({ isOpen, onClose, onSubmitClient }) {
             />
           </div>
 
-          <div>
-            <label className="block font-semibold text-slate-700 mb-1">
-              Equipos / Maquinaria en el cliente:
-            </label>
-            <textarea
-              rows={2}
-              value={equipmentInfo}
-              onChange={(e) => setEquipmentInfo(e.target.value)}
-              placeholder="Ej: Aire Daikin VRV, Vitrina expositora frigorífica, Caldera de gas..."
-              className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:bg-white outline-none"
-            />
-          </div>
-
-          {/* Acciones */}
           <div className="flex items-center justify-end space-x-2 pt-3 border-t border-slate-200">
             <button
               type="button"

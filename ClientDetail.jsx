@@ -4,7 +4,7 @@ import {
   CheckCircle2, PlusCircle, Clock, ShieldAlert, Check, ArrowLeft, History, RotateCcw, Trash2, Edit3 
 } from 'lucide-react';
 
-export default function ClientDetail({ client, onOpenAddNote, onOpenCompleteNote, onReopenNote, onDeleteNote, onOpenEditClient, onBack }) {
+export default function ClientDetail({ client, onOpenAddNote, onOpenCompleteNote, onReopenNote, onDeleteNote, onOpenEditClient, onDeleteClient, onBack }) {
   const [activeTab, setActiveTab] = useState('pending');
 
   if (!client) {
@@ -43,14 +43,24 @@ export default function ClientDetail({ client, onOpenAddNote, onOpenCompleteNote
                 {client.code}
               </span>
               <h2 className="text-xl md:text-2xl font-bold tracking-tight text-white">{client.name}</h2>
-              <button
-                onClick={() => onOpenEditClient(client)}
-                className="inline-flex items-center space-x-1 text-xs text-sky-300 hover:text-white bg-slate-800 hover:bg-slate-700 px-2 py-1 rounded border border-slate-700 transition ml-2"
-                title="Editar cliente"
-              >
-                <Edit3 className="w-3.5 h-3.5" />
-                <span>Editar</span>
-              </button>
+              <div className="flex items-center space-x-1 ml-2">
+                <button
+                  onClick={() => onOpenEditClient(client)}
+                  className="inline-flex items-center space-x-1 text-xs text-sky-300 hover:text-white bg-slate-800 hover:bg-slate-700 px-2 py-1 rounded border border-slate-700 transition"
+                  title="Editar cliente"
+                >
+                  <Edit3 className="w-3.5 h-3.5" />
+                  <span>Editar</span>
+                </button>
+                <button
+                  onClick={() => onDeleteClient(client)}
+                  className="inline-flex items-center space-x-1 text-xs text-rose-300 hover:text-white bg-rose-950/40 hover:bg-rose-900 px-2 py-1 rounded border border-rose-800/60 transition"
+                  title="Eliminar cliente"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>Eliminar</span>
+                </button>
+              </div>
             </div>
           </div>
 

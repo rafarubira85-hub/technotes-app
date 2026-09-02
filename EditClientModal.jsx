@@ -39,7 +39,7 @@ export default function EditClientModal({ isOpen, onClose, client, onUpdateClien
         address: address.trim(),
         phone: phone.trim(),
         contact_person: contactPerson.trim(),
-        equipment_info: client.equipment_info || ''
+        equipment_info: '',
       });
       onClose();
     } catch (err) {

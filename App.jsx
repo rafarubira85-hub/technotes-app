@@ -183,6 +183,8 @@ export default function App() {
         totalClients={clients.length}
         totalPending={totalPendingNotes}
         onRestoreComplete={handleRestoreComplete}
+        selectedClientId={selectedClientId}
+        onBackToList={() => setSelectedClientId(null)}
       />
 
       <main className="max-w-7xl w-full mx-auto p-3 md:p-6 flex-1 grid grid-cols-1 md:grid-cols-12 gap-4">

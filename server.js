@@ -1,6 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import path from 'path';
+import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { db, initDB } from './db.js';
 
@@ -78,7 +79,6 @@ app.post('/api/clients', (req, res) => {
       return res.status(400).json({ error: 'El nombre del cliente es obligatorio' });
     }
 
-    // Autogenerar código si no se proporciona
     let clientCode = code ? code.trim() : '';
     if (!clientCode) {
       const maxIdRow = db.prepare('SELECT MAX(id) as maxId FROM clients').get();
@@ -207,19 +207,22 @@ app.delete('/api/notes/:id', (req, res) => {
   }
 });
 
-// Servir frontend en producción si existe dist/
-const distPath = path.join(__dirname, '../dist');
+// Servir frontend en producción
+const distPath = path.resolve('dist');
+
 app.use(express.static(distPath));
 
 app.get('*', (req, res, next) => {
   if (req.path.startsWith('/api')) return next();
-  res.sendFile(path.join(distPath, 'index.html'), (err) => {
+  const indexPath = path.join(distPath, 'index.html');
+  res.sendFile(indexPath, (err) => {
     if (err) {
-      res.status(200).send('API de TechNotes activa en puerto ' + PORT + '. Para desarrollo React, active Vite.');
+      console.error('Error sirviendo index.html:', err);
+      res.status(500).send('Error al cargar la aplicación frontend: ' + err.message);
     }
   });
 });
 
 app.listen(PORT, () => {
-  console.log(`🚀 Servidor TechNotes activo en http://localhost:${PORT}`);
+  console.log(`🚀 Servidor TechNotes activo en puerto ${PORT}`);
 });

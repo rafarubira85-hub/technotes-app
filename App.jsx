@@ -169,6 +169,11 @@ export default function App() {
     }
   };
 
+  const handleRestoreComplete = async () => {
+    await fetchClients();
+    if (selectedClientId) await fetchClientDetail(selectedClientId);
+  };
+
   const totalPendingNotes = clients.reduce((acc, c) => acc + (c.pending_notes_count || 0), 0);
 
   return (
@@ -177,6 +182,7 @@ export default function App() {
         onOpenAddClient={() => setIsAddClientOpen(true)}
         totalClients={clients.length}
         totalPending={totalPendingNotes}
+        onRestoreComplete={handleRestoreComplete}
       />
 
       <main className="max-w-7xl w-full mx-auto p-3 md:p-6 flex-1 grid grid-cols-1 md:grid-cols-12 gap-4">

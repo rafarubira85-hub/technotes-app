@@ -123,6 +123,17 @@ app.put('/api/clients/:id', (req, res) => {
   }
 });
 
+// Eliminar cliente y sus notas asociadas
+app.delete('/api/clients/:id', (req, res) => {
+  try {
+    db.prepare('DELETE FROM clients WHERE id = ?').run(req.params.id);
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error al eliminar cliente:', error);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
 // --- RUTAS API DE NOTAS Y AVISOS ---
 
 // Crear nueva nota/aviso

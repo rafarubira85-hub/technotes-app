@@ -1,6 +1,15 @@
 import React, { useState } from 'react';
 import { Search, MapPin, Phone, User, AlertTriangle, CheckCircle2, ChevronRight, Filter } from 'lucide-react';
 
+// Función para normalizar texto (convierte a minúsculas y elimina tildes/acentos)
+const normalizeText = (text) => {
+  if (!text) return '';
+  return text
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+};
+
 export default function ClientList({ clients, selectedClientId, onSelectClient, searchTerm, setSearchTerm }) {
   const [filterType, setFilterType] = useState('all'); // 'all', 'pending', 'urgent'
 
@@ -11,13 +20,17 @@ export default function ClientList({ clients, selectedClientId, onSelectClient, 
 
     // Búsqueda por texto
     if (!searchTerm.trim()) return true;
-    const term = searchTerm.toLowerCase();
-    return (
-      client.name.toLowerCase().includes(term) ||
-      (client.code && client.code.toLowerCase().includes(term)) ||
-      (client.address && client.address.toLowerCase().includes(term)) ||
-      (client.contact_person && client.contact_person.toLowerCase().includes(term))
+
+    // Dividir la búsqueda del usuario en palabras clave independientes e ignorar acentos
+    const searchWords = normalizeText(searchTerm).split(/\s+/).filter(Boolean);
+
+    // Texto completo combinando nombre, código y dirección sin acentos
+    const clientText = normalizeText(
+      `${client.name} ${client.code || ''} ${client.address || ''} ${client.contact_person || ''}`
     );
+
+    // Verificar que TODAS las palabras buscadas estén en el cliente
+    return searchWords.every(word => clientText.includes(word));
   });
 
   return (
@@ -30,7 +43,7 @@ export default function ClientList({ clients, selectedClientId, onSelectClient, 
             type="text"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Buscar por cliente, dirección o código..."
+            placeholder="Buscar por cliente, ciudad o dirección (ej: Lidl Burriana, Castellon)..."
             className="w-full pl-9 pr-4 py-2 text-sm bg-white border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-sky-500 outline-none transition"
           />
           {searchTerm && (

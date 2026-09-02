@@ -3,6 +3,7 @@ import Header from './Header.jsx';
 import ClientList from './ClientList.jsx';
 import ClientDetail from './ClientDetail.jsx';
 import AddClientModal from './AddClientModal.jsx';
+import EditClientModal from './EditClientModal.jsx';
 import AddNoteModal from './AddNoteModal.jsx';
 import CompleteNoteModal from './CompleteNoteModal.jsx';
 
@@ -14,6 +15,8 @@ export default function App() {
   
   // Modales
   const [isAddClientOpen, setIsAddClientOpen] = useState(false);
+  const [isEditClientOpen, setIsEditClientOpen] = useState(false);
+  const [clientToEdit, setClientToEdit] = useState(null);
   const [isAddNoteOpen, setIsAddNoteOpen] = useState(false);
   const [addNoteClientId, setAddNoteClientId] = useState(null);
   const [isCompleteNoteOpen, setIsCompleteNoteOpen] = useState(false);
@@ -32,7 +35,6 @@ export default function App() {
       const data = await res.json();
       setClients(data);
 
-      // Si no hay cliente seleccionado y hay lista, seleccionar el primero
       if (data.length > 0 && !selectedClientId) {
         setSelectedClientId(data[0].id);
       }
@@ -83,6 +85,27 @@ export default function App() {
     setSelectedClientId(data.id);
   };
 
+  // Manejar actualización de cliente existente
+  const handleUpdateClient = async (clientId, updatedData) => {
+    const res = await fetch(`/api/clients/${clientId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updatedData),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Error al actualizar cliente');
+
+    await fetchClients();
+    if (selectedClientId === clientId) {
+      await fetchClientDetail(clientId);
+    }
+  };
+
+  const handleOpenEditClient = (client) => {
+    setClientToEdit(client);
+    setIsEditClientOpen(true);
+  };
+
   // Manejar creación de nueva nota/aviso
   const handleAddNote = async (noteData) => {
     const res = await fetch('/api/notes', {
@@ -99,7 +122,6 @@ export default function App() {
     }
   };
 
-  // Abrir modal para añadir nota
   const handleOpenAddNote = (clientId) => {
     setAddNoteClientId(clientId);
     setIsAddNoteOpen(true);
@@ -150,17 +172,14 @@ export default function App() {
   return (
     <div className="min-h-screen bg-slate-100 flex flex-col font-sans">
       
-      {/* Header Superior */}
       <Header
         onOpenAddClient={() => setIsAddClientOpen(true)}
         totalClients={clients.length}
         totalPending={totalPendingNotes}
       />
 
-      {/* Contenedor Principal Responsive */}
       <main className="max-w-7xl w-full mx-auto p-3 md:p-6 flex-1 grid grid-cols-1 md:grid-cols-12 gap-4">
         
-        {/* Columna Izquierda: Lista de Clientes (En móvil se oculta si hay cliente seleccionado) */}
         <div className={`md:col-span-5 lg:col-span-4 ${selectedClientId ? 'hidden md:block' : 'block'}`}>
           <ClientList
             clients={clients}
@@ -171,7 +190,6 @@ export default function App() {
           />
         </div>
 
-        {/* Columna Derecha: Detalle del Cliente Seleccionado y sus Avisos */}
         <div className={`md:col-span-7 lg:col-span-8 ${!selectedClientId ? 'hidden md:block' : 'block'}`}>
           <ClientDetail
             client={selectedClient}
@@ -179,17 +197,24 @@ export default function App() {
             onOpenCompleteNote={handleOpenCompleteNote}
             onReopenNote={handleReopenNote}
             onDeleteNote={handleDeleteNote}
+            onOpenEditClient={handleOpenEditClient}
             onBack={() => setSelectedClientId(null)}
           />
         </div>
 
       </main>
 
-      {/* Modales */}
       <AddClientModal
         isOpen={isAddClientOpen}
         onClose={() => setIsAddClientOpen(false)}
         onSubmitClient={handleAddClient}
+      />
+
+      <EditClientModal
+        isOpen={isEditClientOpen}
+        onClose={() => setIsEditClientOpen(false)}
+        client={clientToEdit}
+        onUpdateClient={handleUpdateClient}
       />
 
       <AddNoteModal

@@ -1,7 +1,7 @@
 import React, { useRef } from 'react';
-import { Wrench, Plus, Users, AlertCircle, Download, Upload } from 'lucide-react';
+import { Wrench, Plus, Users, AlertCircle, Download, Upload, List } from 'lucide-react';
 
-export default function Header({ onOpenAddClient, totalClients, totalPending, onRestoreComplete }) {
+export default function Header({ onOpenAddClient, totalClients, totalPending, onRestoreComplete, selectedClientId, onBackToList }) {
   const fileInputRef = useRef(null);
 
   const handleExportBackup = () => {
@@ -64,7 +64,7 @@ export default function Header({ onOpenAddClient, totalClients, totalPending, on
         </div>
 
         {/* Resumen e Indicadores */}
-        <div className="flex items-center space-x-2 md:space-x-3">
+        <div className="flex items-center space-x-2 md:space-x-3 flex-wrap">
           <div className="hidden lg:flex items-center space-x-3 bg-slate-800/80 px-3 py-1.5 rounded-lg border border-slate-700/60 text-xs">
             <div className="flex items-center space-x-1.5 text-slate-300">
               <Users className="w-3.5 h-3.5 text-slate-400" />
@@ -112,8 +112,22 @@ export default function Header({ onOpenAddClient, totalClients, totalPending, on
             className="flex items-center space-x-1.5 bg-sky-600 hover:bg-sky-500 text-white font-bold px-3 py-2 rounded-lg text-xs md:text-sm shadow-md transition active:scale-95"
           >
             <Plus className="w-4 h-4 stroke-[2.5]" />
-            <span>Nuevo Cliente</span>
+            <span className="hidden sm:inline">Nuevo Cliente</span>
+            <span className="sm:hidden">+ Cliente</span>
           </button>
+
+          {/* Botón CLIENTES arriba en la cabecera (Destacado para móvil) */}
+          {selectedClientId && (
+            <button
+              onClick={onBackToList}
+              className="md:hidden flex items-center space-x-1.5 bg-slate-800 hover:bg-slate-700 text-sky-300 font-bold px-3 py-2 rounded-lg text-xs border border-sky-500/40 transition active:scale-95 shadow-sm"
+              title="Volver a la lista de clientes"
+            >
+              <List className="w-4 h-4 text-sky-400" />
+              <span>Clientes</span>
+            </button>
+          )}
+
         </div>
 
       </div>

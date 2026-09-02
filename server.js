@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import path from 'path';
 import fs from 'fs';
+import { execSync } from 'child_process';
 import { fileURLToPath } from 'url';
 import { db, initDB } from './db.js';
 
@@ -207,20 +208,34 @@ app.delete('/api/notes/:id', (req, res) => {
   }
 });
 
-// Servir frontend en producción
-const distPath = path.resolve('dist');
+// Detectar y servir la carpeta dist del frontend
+const possibleDistPaths = [
+  path.resolve('dist'),
+  path.join(__dirname, 'dist'),
+  path.join(__dirname, '../dist')
+];
+
+let distPath = possibleDistPaths.find(p => fs.existsSync(path.join(p, 'index.html')));
+
+if (!distPath) {
+  console.log('⚡ dist/index.html no encontrado. Compilando frontend automáticamente...');
+  try {
+    execSync('npx vite build', { stdio: 'inherit' });
+    distPath = possibleDistPaths.find(p => fs.existsSync(path.join(p, 'index.html'))) || path.resolve('dist');
+  } catch (err) {
+    console.error('Error al compilar frontend:', err);
+  }
+}
 
 app.use(express.static(distPath));
 
 app.get('*', (req, res, next) => {
   if (req.path.startsWith('/api')) return next();
   const indexPath = path.join(distPath, 'index.html');
-  res.sendFile(indexPath, (err) => {
-    if (err) {
-      console.error('Error sirviendo index.html:', err);
-      res.status(500).send('Error al cargar la aplicación frontend: ' + err.message);
-    }
-  });
+  if (fs.existsSync(indexPath)) {
+    return res.sendFile(indexPath);
+  }
+  res.status(200).send('API de TechNotes activa en puerto ' + PORT);
 });
 
 app.listen(PORT, () => {

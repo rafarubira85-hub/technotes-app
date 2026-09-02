@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import Header from './components/Header.jsx';
-import ClientList from './components/ClientList.jsx';
-import ClientDetail from './components/ClientDetail.jsx';
-import AddClientModal from './components/AddClientModal.jsx';
-import AddNoteModal from './components/AddNoteModal.jsx';
-import CompleteNoteModal from './components/CompleteNoteModal.jsx';
+import Header from './Header.jsx';
+import ClientList from './ClientList.jsx';
+import ClientDetail from './ClientDetail.jsx';
+import AddClientModal from './AddClientModal.jsx';
+import AddNoteModal from './AddNoteModal.jsx';
+import CompleteNoteModal from './CompleteNoteModal.jsx';
 
 export default function App() {
   const [clients, setClients] = useState([]);

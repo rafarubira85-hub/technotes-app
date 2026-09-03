@@ -5,6 +5,7 @@ import ClientDetail from './ClientDetail.jsx';
 import AddClientModal from './AddClientModal.jsx';
 import EditClientModal from './EditClientModal.jsx';
 import AddNoteModal from './AddNoteModal.jsx';
+import EditNoteModal from './EditNoteModal.jsx';
 import CompleteNoteModal from './CompleteNoteModal.jsx';
 import PinAccessModal from './PinAccessModal.jsx';
 import QrModal from './QrModal.jsx';
@@ -25,6 +26,8 @@ export default function App() {
   const [clientToEdit, setClientToEdit] = useState(null);
   const [isAddNoteOpen, setIsAddNoteOpen] = useState(false);
   const [addNoteClientId, setAddNoteClientId] = useState(null);
+  const [isEditNoteOpen, setIsEditNoteOpen] = useState(false);
+  const [noteToEdit, setNoteToEdit] = useState(null);
   const [isCompleteNoteOpen, setIsCompleteNoteOpen] = useState(false);
   const [noteToComplete, setNoteToComplete] = useState(null);
 
@@ -217,6 +220,27 @@ export default function App() {
     setIsAddNoteOpen(true);
   };
 
+  // Editar nota
+  const handleOpenEditNote = (note) => {
+    setNoteToEdit(note);
+    setIsEditNoteOpen(true);
+  };
+
+  const handleUpdateNote = async (noteId, updatedData) => {
+    const res = await fetch(`/api/notes/${noteId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updatedData),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Error al actualizar nota');
+    await fetchClients();
+    if (selectedClientId) {
+      await fetchClientDetail(selectedClientId);
+    }
+    await saveLocalBackup();
+  };
+
   // Resolver nota
   const handleCompleteNote = async (noteId, completionData) => {
     const res = await fetch(`/api/notes/${noteId}/complete`, {
@@ -305,6 +329,7 @@ export default function App() {
             onDeleteNote={handleDeleteNote}
             onOpenEditClient={handleOpenEditClient}
             onDeleteClient={handleDeleteClient}
+            onOpenEditNote={handleOpenEditNote}
             onBack={() => setSelectedClientId(null)}
           />
         </div>
@@ -329,6 +354,13 @@ export default function App() {
         clientId={addNoteClientId}
         clientName={selectedClient ? selectedClient.name : ''}
         onSubmitNote={handleAddNote}
+      />
+
+      <EditNoteModal
+        isOpen={isEditNoteOpen}
+        onClose={() => setIsEditNoteOpen(false)}
+        note={noteToEdit}
+        onUpdateNote={handleUpdateNote}
       />
 
       <CompleteNoteModal

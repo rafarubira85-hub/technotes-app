@@ -19,7 +19,6 @@ export default function AddNoteModal({ isOpen, onClose, clientId, clientName, on
       return;
     }
 
-    // Guardar nombre del técnico en localStorage para comodidad en la próxima nota
     localStorage.setItem('tech_name', technicianName.trim());
 
     setIsSubmitting(true);
@@ -35,7 +34,6 @@ export default function AddNoteModal({ isOpen, onClose, clientId, clientName, on
         technician_name: technicianName.trim(),
       });
 
-      // Resetear campos
       setTitle('');
       setContent('');
       setPriority('normal');
@@ -131,6 +129,7 @@ export default function AddNoteModal({ isOpen, onClose, clientId, clientName, on
               >
                 <option value="mantenimiento">🔧 Mantenimiento</option>
                 <option value="repuesto">📦 Repuesto a pedir</option>
+                <option value="presupuesto">📄 Pendiente de presupuesto</option>
                 <option value="averia">⚠️ Avería / Revisión</option>
                 <option value="general">📝 Observación general</option>
               </select>

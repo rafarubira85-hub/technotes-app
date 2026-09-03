@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
 import { 
-  Building2, MapPin, Phone, User, AlertTriangle, 
-  CheckCircle2, PlusCircle, Clock, ShieldAlert, Check, ArrowLeft, History, RotateCcw, Trash2, Edit3 
+  Building2, MapPin, Phone, User, Wrench, AlertTriangle, 
+  CheckCircle2, PlusCircle, Clock, ShieldAlert, FileText, Check, ArrowLeft, History, RotateCcw, Trash2 
 } from 'lucide-react';
 
-export default function ClientDetail({ client, onOpenAddNote, onOpenCompleteNote, onReopenNote, onDeleteNote, onOpenEditClient, onDeleteClient, onBack }) {
-  const [activeTab, setActiveTab] = useState('pending');
+export default function ClientDetail({ client, onOpenAddNote, onOpenCompleteNote, onReopenNote, onDeleteNote, onBack }) {
+  const [activeTab, setActiveTab] = useState('pending'); // 'pending' or 'history'
 
   if (!client) {
     return (
@@ -23,9 +23,45 @@ export default function ClientDetail({ client, onOpenAddNote, onOpenCompleteNote
   const completedNotes = client.notes ? client.notes.filter(n => n.status === 'completado') : [];
   const hasUrgent = pendingNotes.some(n => n.priority === 'alta');
 
+  const renderCategoryBadge = (cat) => {
+    switch (cat) {
+      case 'presupuesto':
+        return (
+          <span className="text-[10px] font-bold bg-purple-100 text-purple-800 border border-purple-300 px-2 py-0.5 rounded uppercase">
+            📄 Pendiente de presupuesto
+          </span>
+        );
+      case 'repuesto':
+        return (
+          <span className="text-[10px] font-bold bg-indigo-100 text-indigo-800 border border-indigo-200 px-2 py-0.5 rounded uppercase">
+            📦 Repuesto a pedir
+          </span>
+        );
+      case 'mantenimiento':
+        return (
+          <span className="text-[10px] font-bold bg-sky-100 text-sky-800 border border-sky-200 px-2 py-0.5 rounded uppercase">
+            🔧 Mantenimiento
+          </span>
+        );
+      case 'averia':
+        return (
+          <span className="text-[10px] font-bold bg-rose-100 text-rose-800 border border-rose-200 px-2 py-0.5 rounded uppercase">
+            ⚠️ Avería / Revisión
+          </span>
+        );
+      default:
+        return (
+          <span className="text-[10px] font-semibold bg-slate-200 text-slate-700 px-2 py-0.5 rounded uppercase">
+            📝 {cat || 'General'}
+          </span>
+        );
+    }
+  };
+
   return (
     <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col h-full">
       
+      {/* Cabecera del Cliente */}
       <div className="bg-slate-900 text-white p-4 md:p-5 space-y-3">
         <div className="flex items-start justify-between">
           <div className="space-y-1">
@@ -38,29 +74,11 @@ export default function ClientDetail({ client, onOpenAddNote, onOpenCompleteNote
                 <span>Volver a la lista</span>
               </button>
             )}
-            <div className="flex items-center space-x-2 flex-wrap gap-y-1">
+            <div className="flex items-center space-x-2">
               <span className="text-xs font-mono font-bold bg-sky-500/20 text-sky-300 px-2 py-0.5 rounded border border-sky-500/30">
                 {client.code}
               </span>
               <h2 className="text-xl md:text-2xl font-bold tracking-tight text-white">{client.name}</h2>
-              <div className="flex items-center space-x-1 ml-2">
-                <button
-                  onClick={() => onOpenEditClient(client)}
-                  className="inline-flex items-center space-x-1 text-xs text-sky-300 hover:text-white bg-slate-800 hover:bg-slate-700 px-2 py-1 rounded border border-slate-700 transition"
-                  title="Editar cliente"
-                >
-                  <Edit3 className="w-3.5 h-3.5" />
-                  <span>Editar</span>
-                </button>
-                <button
-                  onClick={() => onDeleteClient(client)}
-                  className="inline-flex items-center space-x-1 text-xs text-rose-300 hover:text-white bg-rose-950/40 hover:bg-rose-900 px-2 py-1 rounded border border-rose-800/60 transition"
-                  title="Eliminar cliente"
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                  <span>Eliminar</span>
-                </button>
-              </div>
             </div>
           </div>
 
@@ -73,6 +91,7 @@ export default function ClientDetail({ client, onOpenAddNote, onOpenCompleteNote
           </button>
         </div>
 
+        {/* Ficha técnica rápida */}
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 text-xs pt-2 border-t border-slate-800 text-slate-300">
           {client.address && (
             <div className="flex items-center space-x-1.5">
@@ -95,6 +114,7 @@ export default function ClientDetail({ client, onOpenAddNote, onOpenCompleteNote
         </div>
       </div>
 
+      {/* Alerta Destacada para el Técnico si hay urgentes */}
       {hasUrgent && (
         <div className="bg-rose-50 border-b border-rose-200 p-3.5 flex items-start space-x-3 text-rose-900 animate-pulse">
           <ShieldAlert className="w-5 h-5 text-rose-600 flex-shrink-0 mt-0.5" />
@@ -105,6 +125,7 @@ export default function ClientDetail({ client, onOpenAddNote, onOpenCompleteNote
         </div>
       )}
 
+      {/* Selector de Pestañas (Pendientes vs Historial) */}
       <div className="flex border-b border-slate-200 bg-slate-50/70 text-xs font-semibold px-4 pt-2">
         <button
           onClick={() => setActiveTab('pending')}
@@ -130,6 +151,7 @@ export default function ClientDetail({ client, onOpenAddNote, onOpenCompleteNote
         </button>
       </div>
 
+      {/* Contenido principal de notas */}
       <div className="p-4 overflow-y-auto flex-1 max-h-[calc(100vh-320px)] space-y-3">
         {activeTab === 'pending' ? (
           pendingNotes.length === 0 ? (
@@ -167,9 +189,7 @@ export default function ClientDetail({ client, onOpenAddNote, onOpenCompleteNote
                         >
                           {isHigh ? '🔥 Alta Prioridad' : '⚡ Aviso Pendiente'}
                         </span>
-                        <span className="text-[10px] font-semibold bg-slate-200 text-slate-700 px-2 py-0.5 rounded uppercase">
-                          {note.category}
-                        </span>
+                        {renderCategoryBadge(note.category)}
                       </div>
                       <h3 className="font-bold text-slate-900 text-base">{note.title}</h3>
                     </div>

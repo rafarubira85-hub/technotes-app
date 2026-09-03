@@ -1,7 +1,8 @@
 import React, { useRef } from 'react';
-import { Wrench, Plus, Users, AlertCircle, Download, Upload, List, Lock } from 'lucide-react';
+import { Wrench, Plus, Users, AlertCircle, Download, Upload, List, Lock, QrCode } from 'lucide-react';
+import { QR_ALFAFAR, QR_VALENCIA } from './qrData.js';
 
-export default function Header({ onOpenAddClient, totalClients, totalPending, onRestoreComplete, selectedClientId, onBackToList, onLock }) {
+export default function Header({ onOpenAddClient, totalClients, totalPending, onRestoreComplete, selectedClientId, onBackToList, onLock, onOpenQr }) {
   const fileInputRef = useRef(null);
 
   const handleExportBackup = () => {
@@ -61,6 +62,27 @@ export default function Header({ onOpenAddClient, totalClients, totalPending, on
               Cuaderno digital de avisos y clientes para técnicos
             </p>
           </div>
+        </div>
+
+        {/* Botones de QR Destacados (QR ALFAFAR y QR VALENCIA) */}
+        <div className="flex items-center space-x-2">
+          <button
+            onClick={() => onOpenQr('QR ALFAFAR', QR_ALFAFAR)}
+            className="inline-flex items-center space-x-1 text-xs bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 font-bold px-2.5 py-1.5 rounded-lg border border-amber-500/40 transition active:scale-95 shadow-sm"
+            title="Abrir QR Alfafar"
+          >
+            <QrCode className="w-3.5 h-3.5 text-amber-400" />
+            <span>QR ALFAFAR</span>
+          </button>
+
+          <button
+            onClick={() => onOpenQr('QR VALENCIA', QR_VALENCIA)}
+            className="inline-flex items-center space-x-1 text-xs bg-sky-500/20 hover:bg-sky-500/30 text-sky-300 font-bold px-2.5 py-1.5 rounded-lg border border-sky-500/40 transition active:scale-95 shadow-sm"
+            title="Abrir QR Valencia"
+          >
+            <QrCode className="w-3.5 h-3.5 text-sky-400" />
+            <span>QR VALENCIA</span>
+          </button>
         </div>
 
         {/* Resumen e Indicadores */}

@@ -13,8 +13,77 @@ const PORT = process.env.PORT || 3001;
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 
-// Inicializar BD
+// Inicializar BD local
 initDB();
+
+// --- FUNCIONES DE RESTAURACIÓN Y SINCRONIZACIÓN PERSISTENTE ---
+
+function getFullDatabaseState() {
+  const clients = db.prepare('SELECT * FROM clients').all();
+  const notes = db.prepare('SELECT * FROM notes').all();
+  return {
+    version: 1,
+    exported_at: new Date().toISOString(),
+    clients,
+    notes
+  };
+}
+
+function restoreFromBackupData(backupData) {
+  if (!backupData || !Array.isArray(backupData.clients)) return;
+  const { clients, notes } = backupData;
+
+  db.exec('BEGIN TRANSACTION;');
+
+  const insertClient = db.prepare(`
+    INSERT OR REPLACE INTO clients (id, name, code, address, phone, contact_person, equipment_info, created_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+  `);
+
+  for (const c of clients) {
+    insertClient.run(c.id, c.name, c.code || '', c.address || '', c.phone || '', c.contact_person || '', c.equipment_info || '', c.created_at || new Date().toISOString());
+  }
+
+  if (Array.isArray(notes)) {
+    const insertNote = db.prepare(`
+      INSERT OR REPLACE INTO notes (id, client_id, title, content, priority, category, status, technician_name, resolved_by, resolved_at, resolution_comment, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+
+    for (const n of notes) {
+      insertNote.run(n.id, n.client_id, n.title, n.content, n.priority || 'normal', n.category || 'general', n.status || 'pendiente', n.technician_name, n.resolved_by || null, n.resolved_at || null, n.resolution_comment || null, n.created_at || new Date().toISOString());
+    }
+  }
+
+  db.exec('COMMIT;');
+}
+
+// Cargar copia persistente desde el archivo database_state.json o GitHub al arrancar el servidor
+async function syncFromGitHubOnStartup() {
+  try {
+    const localStatePath = path.join(__dirname, 'database_state.json');
+    if (fs.existsSync(localStatePath)) {
+      const fileData = fs.readFileSync(localStatePath, 'utf8');
+      const backupData = JSON.parse(fileData);
+      restoreFromBackupData(backupData);
+      console.log('✅ Base de datos sincronizada desde database_state.json');
+    }
+
+    const rawUrl = 'https://raw.githubusercontent.com/rafarubira85-hub/technotes-app/main/database_state.json';
+    const res = await fetch(rawUrl);
+    if (res.ok) {
+      const cloudData = await res.json();
+      if (cloudData && Array.isArray(cloudData.clients)) {
+        restoreFromBackupData(cloudData);
+        console.log('☁️ Base de datos sincronizada desde GitHub Cloud en tiempo real');
+      }
+    }
+  } catch (err) {
+    console.error('Error en syncFromGitHubOnStartup:', err.message);
+  }
+}
+
+syncFromGitHubOnStartup();
 
 // --- RUTAS API DE CLIENTES ---
 
@@ -139,14 +208,7 @@ app.delete('/api/clients/:id', (req, res) => {
 // Exportar copia de seguridad completa (JSON)
 app.get('/api/backup', (req, res) => {
   try {
-    const clients = db.prepare('SELECT * FROM clients').all();
-    const notes = db.prepare('SELECT * FROM notes').all();
-    const backupData = {
-      version: 1,
-      exported_at: new Date().toISOString(),
-      clients,
-      notes
-    };
+    const backupData = getFullDatabaseState();
     res.setHeader('Content-Type', 'application/json');
     res.setHeader('Content-Disposition', `attachment; filename=technotes_backup_${new Date().toISOString().split('T')[0]}.json`);
     res.json(backupData);
@@ -164,34 +226,9 @@ app.post('/api/restore', (req, res) => {
       return res.status(400).json({ error: 'El archivo de copia de seguridad no es válido' });
     }
 
-    db.exec('BEGIN TRANSACTION;');
-
-    // Insertar/actualizar clientes
-    const insertClient = db.prepare(`
-      INSERT OR REPLACE INTO clients (id, name, code, address, phone, contact_person, equipment_info, created_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    `);
-
-    for (const c of clients) {
-      insertClient.run(c.id, c.name, c.code || '', c.address || '', c.phone || '', c.contact_person || '', c.equipment_info || '', c.created_at || new Date().toISOString());
-    }
-
-    // Insertar/actualizar notas si existen
-    if (Array.isArray(notes)) {
-      const insertNote = db.prepare(`
-        INSERT OR REPLACE INTO notes (id, client_id, title, content, priority, category, status, technician_name, resolved_by, resolved_at, resolution_comment, created_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `);
-
-      for (const n of notes) {
-        insertNote.run(n.id, n.client_id, n.title, n.content, n.priority || 'normal', n.category || 'general', n.status || 'pendiente', n.technician_name, n.resolved_by || null, n.resolved_at || null, n.resolution_comment || null, n.created_at || new Date().toISOString());
-      }
-    }
-
-    db.exec('COMMIT;');
+    restoreFromBackupData(req.body);
     res.json({ success: true, clients_count: clients.length, notes_count: notes ? notes.length : 0 });
   } catch (error) {
-    db.exec('ROLLBACK;');
     console.error('Error al restaurar backup:', error);
     res.status(500).json({ error: 'Error al restaurar la copia de seguridad: ' + error.message });
   }

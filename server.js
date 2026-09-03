@@ -265,6 +265,29 @@ app.post('/api/notes', (req, res) => {
   }
 });
 
+// Editar/Actualizar nota/aviso existente
+app.put('/api/notes/:id', (req, res) => {
+  try {
+    const { title, content, priority, category, technician_name } = req.body;
+    if (!title || !content || !technician_name) {
+      return res.status(400).json({ error: 'Faltan campos obligatorios' });
+    }
+
+    const stmt = db.prepare(`
+      UPDATE notes 
+      SET title = ?, content = ?, priority = ?, category = ?, technician_name = ?
+      WHERE id = ?
+    `);
+    stmt.run(title.trim(), content.trim(), priority || 'normal', category || 'general', technician_name.trim(), req.params.id);
+
+    const updated = db.prepare('SELECT * FROM notes WHERE id = ?').get(req.params.id);
+    res.json(updated);
+  } catch (error) {
+    console.error('Error al actualizar nota:', error);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
 // Marcar nota como completada / resuelta
 app.put('/api/notes/:id/complete', (req, res) => {
   try {

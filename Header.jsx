@@ -1,7 +1,7 @@
 import React, { useRef } from 'react';
-import { Wrench, Plus, Users, AlertCircle, Download, Upload, List } from 'lucide-react';
+import { Wrench, Plus, Users, AlertCircle, Download, Upload, List, Lock } from 'lucide-react';
 
-export default function Header({ onOpenAddClient, totalClients, totalPending, onRestoreComplete, selectedClientId, onBackToList }) {
+export default function Header({ onOpenAddClient, totalClients, totalPending, onRestoreComplete, selectedClientId, onBackToList, onLock }) {
   const fileInputRef = useRef(null);
 
   const handleExportBackup = () => {
@@ -95,6 +95,14 @@ export default function Header({ onOpenAddClient, totalClients, totalPending, on
             >
               <Upload className="w-3.5 h-3.5" />
               <span className="hidden sm:inline">Restaurar</span>
+            </button>
+
+            <button
+              onClick={onLock}
+              className="inline-flex items-center space-x-1 text-xs bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-rose-300 font-medium px-2 py-2 rounded-lg border border-slate-700 transition"
+              title="Bloquear app / Salir"
+            >
+              <Lock className="w-3.5 h-3.5" />
             </button>
             
             <input

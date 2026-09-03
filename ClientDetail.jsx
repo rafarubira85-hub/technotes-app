@@ -4,7 +4,17 @@ import {
   CheckCircle2, PlusCircle, Clock, ShieldAlert, FileText, Check, ArrowLeft, History, RotateCcw, Trash2, Pencil 
 } from 'lucide-react';
 
-export default function ClientDetail({ client, onOpenAddNote, onOpenCompleteNote, onReopenNote, onDeleteNote, onOpenEditNote, onBack }) {
+export default function ClientDetail({ 
+  client, 
+  onOpenAddNote, 
+  onOpenCompleteNote, 
+  onReopenNote, 
+  onDeleteNote, 
+  onOpenEditNote, 
+  onOpenEditClient,
+  onDeleteClient,
+  onBack 
+}) {
   const [activeTab, setActiveTab] = useState('pending'); // 'pending' or 'history'
 
   if (!client) {
@@ -74,11 +84,36 @@ export default function ClientDetail({ client, onOpenAddNote, onOpenCompleteNote
                 <span>Volver a la lista</span>
               </button>
             )}
-            <div className="flex items-center space-x-2">
+            <div className="flex items-center space-x-2 flex-wrap gap-y-2">
               <span className="text-xs font-mono font-bold bg-sky-500/20 text-sky-300 px-2 py-0.5 rounded border border-sky-500/30">
                 {client.code}
               </span>
               <h2 className="text-xl md:text-2xl font-bold tracking-tight text-white">{client.name}</h2>
+              
+              {/* Botones Editar y Eliminar Cliente */}
+              <div className="flex items-center space-x-1.5 ml-2">
+                {onOpenEditClient && (
+                  <button
+                    onClick={() => onOpenEditClient(client)}
+                    className="inline-flex items-center space-x-1 text-xs bg-slate-800 hover:bg-slate-700 text-sky-300 hover:text-white font-medium px-2.5 py-1 rounded-lg border border-slate-700 transition"
+                    title="Editar datos del cliente"
+                  >
+                    <Pencil className="w-3.5 h-3.5" />
+                    <span>Editar</span>
+                  </button>
+                )}
+
+                {onDeleteClient && (
+                  <button
+                    onClick={() => onDeleteClient(client)}
+                    className="inline-flex items-center space-x-1 text-xs bg-slate-800 hover:bg-slate-700 text-rose-400 hover:text-rose-300 font-medium px-2.5 py-1 rounded-lg border border-slate-700 transition"
+                    title="Eliminar cliente"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>Eliminar</span>
+                  </button>
+                )}
+              </div>
             </div>
           </div>
 

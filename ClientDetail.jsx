@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import { 
   Building2, MapPin, Phone, User, Wrench, AlertTriangle, 
-  CheckCircle2, PlusCircle, Clock, ShieldAlert, FileText, Check, ArrowLeft, History, RotateCcw, Trash2 
+  CheckCircle2, PlusCircle, Clock, ShieldAlert, FileText, Check, ArrowLeft, History, RotateCcw, Trash2, Pencil 
 } from 'lucide-react';
 
-export default function ClientDetail({ client, onOpenAddNote, onOpenCompleteNote, onReopenNote, onDeleteNote, onBack }) {
+export default function ClientDetail({ client, onOpenAddNote, onOpenCompleteNote, onReopenNote, onDeleteNote, onOpenEditNote, onBack }) {
   const [activeTab, setActiveTab] = useState('pending'); // 'pending' or 'history'
 
   if (!client) {
@@ -194,13 +194,24 @@ export default function ClientDetail({ client, onOpenAddNote, onOpenCompleteNote
                       <h3 className="font-bold text-slate-900 text-base">{note.title}</h3>
                     </div>
 
-                    <button
-                      onClick={() => onDeleteNote(note.id)}
-                      className="text-slate-400 hover:text-rose-600 p-1 transition"
-                      title="Eliminar nota"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
+                    <div className="flex items-center space-x-1">
+                      {onOpenEditNote && (
+                        <button
+                          onClick={() => onOpenEditNote(note)}
+                          className="text-slate-400 hover:text-sky-600 p-1 transition"
+                          title="Editar aviso"
+                        >
+                          <Pencil className="w-4 h-4" />
+                        </button>
+                      )}
+                      <button
+                        onClick={() => onDeleteNote(note.id)}
+                        className="text-slate-400 hover:text-rose-600 p-1 transition"
+                        title="Eliminar aviso"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
                   </div>
 
                   <p className="text-xs md:text-sm text-slate-700 whitespace-pre-line leading-relaxed bg-white/80 p-3 rounded-lg border border-slate-200/60">

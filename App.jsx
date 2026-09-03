@@ -7,6 +7,7 @@ import EditClientModal from './EditClientModal.jsx';
 import AddNoteModal from './AddNoteModal.jsx';
 import CompleteNoteModal from './CompleteNoteModal.jsx';
 import PinAccessModal from './PinAccessModal.jsx';
+import QrModal from './QrModal.jsx';
 
 export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(() => {
@@ -26,6 +27,17 @@ export default function App() {
   const [addNoteClientId, setAddNoteClientId] = useState(null);
   const [isCompleteNoteOpen, setIsCompleteNoteOpen] = useState(false);
   const [noteToComplete, setNoteToComplete] = useState(null);
+
+  // Modal QR
+  const [isQrOpen, setIsQrOpen] = useState(false);
+  const [qrTitle, setQrTitle] = useState('');
+  const [qrImageSrc, setQrImageSrc] = useState('');
+
+  const handleOpenQr = (title, imageSrc) => {
+    setQrTitle(title);
+    setQrImageSrc(imageSrc);
+    setIsQrOpen(true);
+  };
 
   // Guardar copia permanente en el dispositivo para evitar pérdida por reinicio de Render
   const saveLocalBackup = async () => {
@@ -270,6 +282,7 @@ export default function App() {
         selectedClientId={selectedClientId}
         onBackToList={() => setSelectedClientId(null)}
         onLock={handleLock}
+        onOpenQr={handleOpenQr}
       />
 
       <main className="max-w-7xl w-full mx-auto p-3 md:p-6 flex-1 grid grid-cols-1 md:grid-cols-12 gap-4">
@@ -323,6 +336,13 @@ export default function App() {
         onClose={() => setIsCompleteNoteOpen(false)}
         note={noteToComplete}
         onCompleteNote={handleCompleteNote}
+      />
+
+      <QrModal
+        isOpen={isQrOpen}
+        onClose={() => setIsQrOpen(false)}
+        title={qrTitle}
+        imageSrc={qrImageSrc}
       />
     </div>
   );

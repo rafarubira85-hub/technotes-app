@@ -6,8 +6,13 @@ import AddClientModal from './AddClientModal.jsx';
 import EditClientModal from './EditClientModal.jsx';
 import AddNoteModal from './AddNoteModal.jsx';
 import CompleteNoteModal from './CompleteNoteModal.jsx';
+import PinAccessModal from './PinAccessModal.jsx';
 
 export default function App() {
+  const [isAuthenticated, setIsAuthenticated] = useState(() => {
+    return localStorage.getItem('technotes_auth') === 'true';
+  });
+
   const [clients, setClients] = useState([]);
   const [selectedClientId, setSelectedClientId] = useState(null);
   const [selectedClient, setSelectedClient] = useState(null);
@@ -21,6 +26,21 @@ export default function App() {
   const [addNoteClientId, setAddNoteClientId] = useState(null);
   const [isCompleteNoteOpen, setIsCompleteNoteOpen] = useState(false);
   const [noteToComplete, setNoteToComplete] = useState(null);
+
+  // Manejar autenticación por PIN (PIN configurado: 2831)
+  const handleAuthenticate = (inputPin) => {
+    if (inputPin === '2831') {
+      setIsAuthenticated(true);
+      localStorage.setItem('technotes_auth', 'true');
+      return true;
+    }
+    return false;
+  };
+
+  const handleLock = () => {
+    setIsAuthenticated(false);
+    localStorage.removeItem('technotes_auth');
+  };
 
   // Cargar lista de clientes
   const fetchClients = async () => {
@@ -51,16 +71,18 @@ export default function App() {
   };
 
   useEffect(() => {
-    fetchClients();
-  }, []);
+    if (isAuthenticated) {
+      fetchClients();
+    }
+  }, [isAuthenticated]);
 
   useEffect(() => {
-    if (selectedClientId) {
+    if (isAuthenticated && selectedClientId) {
       fetchClientDetail(selectedClientId);
     } else {
       setSelectedClient(null);
     }
-  }, [selectedClientId]);
+  }, [selectedClientId, isAuthenticated]);
 
   // Guardar nuevo cliente
   const handleAddClient = async (clientData) => {
@@ -176,6 +198,11 @@ export default function App() {
 
   const totalPendingNotes = clients.reduce((acc, c) => acc + (c.pending_notes_count || 0), 0);
 
+  // Pantalla de bloqueo PIN si no está autenticado
+  if (!isAuthenticated) {
+    return <PinAccessModal onAuthenticate={handleAuthenticate} />;
+  }
+
   return (
     <div className="min-h-screen bg-slate-100 flex flex-col font-sans">
       <Header
@@ -185,6 +212,7 @@ export default function App() {
         onRestoreComplete={handleRestoreComplete}
         selectedClientId={selectedClientId}
         onBackToList={() => setSelectedClientId(null)}
+        onLock={handleLock}
       />
 
       <main className="max-w-7xl w-full mx-auto p-3 md:p-6 flex-1 grid grid-cols-1 md:grid-cols-12 gap-4">

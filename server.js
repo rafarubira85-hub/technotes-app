@@ -4,7 +4,6 @@ import path from 'path';
 import fs from 'fs';
 import { execSync } from 'child_process';
 import { fileURLToPath } from 'url';
-import { db, initDB } from './db.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -13,136 +12,102 @@ const PORT = process.env.PORT || 3001;
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 
-// Inicializar BD local
-initDB();
+// --- CONFIGURACIÓN DE BASE DE DATOS NUBE (SUPABASE) ---
+const SUPABASE_URL = process.env.SUPABASE_URL || 'https://zhwtnrxfrupvmmextjcp.supabase.co';
+const SUPABASE_KEY = process.env.SUPABASE_KEY || 'sb_publishable_dJ1X7WRiJ3sfYVN78c3hlw_WXhFRU8O';
 
-// --- FUNCIONES DE RESTAURACIÓN Y SINCRONIZACIÓN PERSISTENTE ---
+const headers = {
+  'apikey': SUPABASE_KEY,
+  'Authorization': `Bearer ${SUPABASE_KEY}`,
+  'Content-Type': 'application/json',
+  'Prefer': 'return=representation'
+};
 
-function getFullDatabaseState() {
-  const clients = db.prepare('SELECT * FROM clients').all();
-  const notes = db.prepare('SELECT * FROM notes').all();
-  return {
-    version: 1,
-    exported_at: new Date().toISOString(),
-    clients,
-    notes
-  };
-}
-
-function restoreFromBackupData(backupData) {
-  if (!backupData || !Array.isArray(backupData.clients)) return;
-  const { clients, notes } = backupData;
-
-  db.exec('BEGIN TRANSACTION;');
-
-  const insertClient = db.prepare(`
-    INSERT OR REPLACE INTO clients (id, name, code, address, phone, contact_person, equipment_info, created_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-  `);
-
-  for (const c of clients) {
-    insertClient.run(c.id, c.name, c.code || '', c.address || '', c.phone || '', c.contact_person || '', c.equipment_info || '', c.created_at || new Date().toISOString());
-  }
-
-  if (Array.isArray(notes)) {
-    const insertNote = db.prepare(`
-      INSERT OR REPLACE INTO notes (id, client_id, title, content, priority, category, status, technician_name, resolved_by, resolved_at, resolution_comment, created_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `);
-
-    for (const n of notes) {
-      insertNote.run(n.id, n.client_id, n.title, n.content, n.priority || 'normal', n.category || 'general', n.status || 'pendiente', n.technician_name, n.resolved_by || null, n.resolved_at || null, n.resolution_comment || null, n.created_at || new Date().toISOString());
+// Helper para hacer llamadas HTTP a Supabase
+async function supabaseFetch(endpoint, options = {}) {
+  const url = `${SUPABASE_URL}/rest/v1${endpoint}`;
+  const res = await fetch(url, {
+    ...options,
+    headers: {
+      ...headers,
+      ...(options.headers || {})
     }
+  });
+  
+  if (!res.ok) {
+    const errorText = await res.text();
+    throw new Error(`Supabase Error (${res.status}): ${errorText}`);
   }
-
-  db.exec('COMMIT;');
+  
+  const text = await res.text();
+  return text ? JSON.parse(text) : null;
 }
-
-// Cargar copia persistente desde el archivo database_state.json o GitHub al arrancar el servidor
-async function syncFromGitHubOnStartup() {
-  try {
-    const localStatePath = path.join(__dirname, 'database_state.json');
-    if (fs.existsSync(localStatePath)) {
-      const fileData = fs.readFileSync(localStatePath, 'utf8');
-      const backupData = JSON.parse(fileData);
-      restoreFromBackupData(backupData);
-      console.log('✅ Base de datos sincronizada desde database_state.json');
-    }
-
-    const rawUrl = 'https://raw.githubusercontent.com/rafarubira85-hub/technotes-app/main/database_state.json';
-    const res = await fetch(rawUrl);
-    if (res.ok) {
-      const cloudData = await res.json();
-      if (cloudData && Array.isArray(cloudData.clients)) {
-        restoreFromBackupData(cloudData);
-        console.log('☁️ Base de datos sincronizada desde GitHub Cloud en tiempo real');
-      }
-    }
-  } catch (err) {
-    console.error('Error en syncFromGitHubOnStartup:', err.message);
-  }
-}
-
-syncFromGitHubOnStartup();
 
 // --- RUTAS API DE CLIENTES ---
 
-// Obtener todos los clientes (con conteo de avisos pendientes) - Orden alfabético estable
-app.get('/api/clients', (req, res) => {
+// Obtener todos los clientes (con sus avisos)
+app.get('/api/clients', async (req, res) => {
   try {
     const { q } = req.query;
-    let query = `
-      SELECT 
-        c.*,
-        COUNT(CASE WHEN n.status = 'pendiente' THEN 1 END) as pending_notes_count,
-        COUNT(CASE WHEN n.status = 'pendiente' AND n.priority = 'alta' THEN 1 END) as urgent_notes_count
-      FROM clients c
-      LEFT JOIN notes n ON c.id = n.client_id
-    `;
-    const params = [];
-
+    let endpoint = '/clients?select=*,notes(*)&order=name.asc';
+    
     if (q && q.trim()) {
-      query += ` WHERE c.name LIKE ? OR c.code LIKE ? OR c.address LIKE ? OR c.contact_person LIKE ?`;
-      const term = `%${q.trim()}%`;
-      params.push(term, term, term, term);
+      const term = encodeURIComponent(`*${q.trim()}*`);
+      endpoint += `&or=(name.ilike.${term},code.ilike.${term},address.ilike.${term},contact_person.ilike.${term})`;
     }
 
-    query += ` GROUP BY c.id ORDER BY c.name ASC`;
+    const clients = await supabaseFetch(endpoint);
 
-    const clients = db.prepare(query).all(...params);
-    res.json(clients);
+    const formattedClients = clients.map(client => {
+      const notes = client.notes || [];
+      const pendingNotes = notes.filter(n => n.status === 'pendiente');
+      const urgentNotes = pendingNotes.filter(n => n.priority === 'alta');
+
+      return {
+        ...client,
+        pending_notes_count: pendingNotes.length,
+        urgent_notes_count: urgentNotes.length
+      };
+    });
+
+    res.json(formattedClients);
   } catch (error) {
-    console.error('Error al obtener clientes:', error);
-    res.status(500).json({ error: 'Error interno del servidor' });
+    console.error('Error al obtener clientes desde Supabase:', error);
+    res.status(500).json({ error: error.message || 'Error interno del servidor' });
   }
 });
 
 // Obtener detalle de un cliente + sus notas
-app.get('/api/clients/:id', (req, res) => {
+app.get('/api/clients/:id', async (req, res) => {
   try {
-    const client = db.prepare('SELECT * FROM clients WHERE id = ?').get(req.params.id);
-    if (!client) {
+    const clients = await supabaseFetch(`/clients?id=eq.${req.params.id}&select=*,notes(*)`);
+    if (!clients || clients.length === 0) {
       return res.status(404).json({ error: 'Cliente no encontrado' });
     }
 
-    const notes = db.prepare(`
-      SELECT * FROM notes 
-      WHERE client_id = ? 
-      ORDER BY 
-        CASE WHEN status = 'pendiente' THEN 0 ELSE 1 END,
-        CASE WHEN priority = 'alta' THEN 0 WHEN priority = 'normal' THEN 1 ELSE 2 END,
-        created_at DESC
-    `).all(req.params.id);
+    const client = clients[0];
+    let notes = client.notes || [];
+
+    // Ordenar notas: pendientes primero, luego prioridad alta, luego fecha
+    notes.sort((a, b) => {
+      if (a.status === 'pendiente' && b.status !== 'pendiente') return -1;
+      if (a.status !== 'pendiente' && b.status === 'pendiente') return 1;
+
+      if (a.priority === 'alta' && b.priority !== 'alta') return -1;
+      if (a.priority !== 'alta' && b.priority === 'alta') return 1;
+
+      return new Date(b.created_at) - new Date(a.created_at);
+    });
 
     res.json({ ...client, notes });
   } catch (error) {
-    console.error('Error al obtener cliente:', error);
-    res.status(500).json({ error: 'Error interno del servidor' });
+    console.error('Error al obtener cliente desde Supabase:', error);
+    res.status(500).json({ error: error.message || 'Error interno del servidor' });
   }
 });
 
 // Crear nuevo cliente
-app.post('/api/clients', (req, res) => {
+app.post('/api/clients', async (req, res) => {
   try {
     const { name, code, address, phone, contact_person, equipment_info } = req.body;
     if (!name || !name.trim()) {
@@ -151,198 +116,235 @@ app.post('/api/clients', (req, res) => {
 
     let clientCode = code ? code.trim() : '';
     if (!clientCode) {
-      const maxIdRow = db.prepare('SELECT MAX(id) as maxId FROM clients').get();
-      const nextId = (maxIdRow.maxId || 0) + 1;
+      const allClients = await supabaseFetch('/clients?select=id');
+      const nextId = (allClients.length || 0) + 1;
       clientCode = `CLI-${String(nextId).padStart(3, '0')}`;
     }
 
-    const stmt = db.prepare(`
-      INSERT INTO clients (name, code, address, phone, contact_person, equipment_info)
-      VALUES (?, ?, ?, ?, ?, ?)
-    `);
-    const result = stmt.run(name.trim(), clientCode, address || '', phone || '', contact_person || '', equipment_info || '');
+    const newClients = await supabaseFetch('/clients', {
+      method: 'POST',
+      body: JSON.stringify({
+        name: name.trim(),
+        code: clientCode,
+        address: address || '',
+        phone: phone || '',
+        contact_person: contact_person || '',
+        equipment_info: equipment_info || ''
+      })
+    });
 
-    const newClient = db.prepare('SELECT * FROM clients WHERE id = ?').get(result.lastInsertRowid);
-    res.status(201).json(newClient);
+    res.status(201).json(newClients[0]);
   } catch (error) {
-    console.error('Error al crear cliente:', error);
-    if (error.message && error.message.includes('UNIQUE constraint failed')) {
-      return res.status(400).json({ error: 'Ya existe un cliente con este código' });
-    }
-    res.status(500).json({ error: 'Error interno del servidor' });
+    console.error('Error al crear cliente en Supabase:', error);
+    res.status(500).json({ error: error.message || 'Error interno del servidor' });
   }
 });
 
 // Actualizar cliente
-app.put('/api/clients/:id', (req, res) => {
+app.put('/api/clients/:id', async (req, res) => {
   try {
     const { name, code, address, phone, contact_person, equipment_info } = req.body;
-    const stmt = db.prepare(`
-      UPDATE clients 
-      SET name = ?, code = ?, address = ?, phone = ?, contact_person = ?, equipment_info = ?
-      WHERE id = ?
-    `);
-    stmt.run(name, code, address, phone, contact_person, equipment_info, req.params.id);
 
-    const updated = db.prepare('SELECT * FROM clients WHERE id = ?').get(req.params.id);
-    res.json(updated);
+    const updatedClients = await supabaseFetch(`/clients?id=eq.${req.params.id}`, {
+      method: 'PATCH',
+      body: JSON.stringify({
+        name: name ? name.trim() : '',
+        code: code ? code.trim() : '',
+        address: address || '',
+        phone: phone || '',
+        contact_person: contact_person || '',
+        equipment_info: equipment_info || ''
+      })
+    });
+
+    res.json(updatedClients[0]);
   } catch (error) {
-    console.error('Error al actualizar cliente:', error);
-    res.status(500).json({ error: 'Error interno del servidor' });
+    console.error('Error al actualizar cliente en Supabase:', error);
+    res.status(500).json({ error: error.message || 'Error interno del servidor' });
   }
 });
 
 // Eliminar cliente y sus notas asociadas
-app.delete('/api/clients/:id', (req, res) => {
+app.delete('/api/clients/:id', async (req, res) => {
   try {
-    db.prepare('DELETE FROM clients WHERE id = ?').run(req.params.id);
+    await supabaseFetch(`/clients?id=eq.${req.params.id}`, {
+      method: 'DELETE'
+    });
     res.json({ success: true });
   } catch (error) {
-    console.error('Error al eliminar cliente:', error);
-    res.status(500).json({ error: 'Error interno del servidor' });
+    console.error('Error al eliminar cliente en Supabase:', error);
+    res.status(500).json({ error: error.message || 'Error interno del servidor' });
   }
 });
 
 // --- RUTAS API DE COPIA DE SEGURIDAD (BACKUP Y RESTORE) ---
 
-// Exportar copia de seguridad completa (JSON)
-app.get('/api/backup', (req, res) => {
+app.get('/api/backup', async (req, res) => {
   try {
-    const backupData = getFullDatabaseState();
+    const clients = await supabaseFetch('/clients?select=*');
+    const notes = await supabaseFetch('/notes?select=*');
+    
+    const backupData = {
+      version: 1,
+      exported_at: new Date().toISOString(),
+      clients,
+      notes
+    };
+    
     res.setHeader('Content-Type', 'application/json');
     res.setHeader('Content-Disposition', `attachment; filename=technotes_backup_${new Date().toISOString().split('T')[0]}.json`);
     res.json(backupData);
   } catch (error) {
-    console.error('Error al generar backup:', error);
-    res.status(500).json({ error: 'Error al exportar la copia de seguridad' });
+    console.error('Error al generar backup desde Supabase:', error);
+    res.status(500).json({ error: 'Error al exportar copia de seguridad' });
   }
 });
 
-// Restaurar copia de seguridad completa
-app.post('/api/restore', (req, res) => {
+app.post('/api/restore', async (req, res) => {
   try {
     const { clients, notes } = req.body;
     if (!Array.isArray(clients)) {
       return res.status(400).json({ error: 'El archivo de copia de seguridad no es válido' });
     }
 
-    restoreFromBackupData(req.body);
+    if (clients.length > 0) {
+      await supabaseFetch('/clients', {
+        method: 'POST',
+        headers: { 'Prefer': 'resolution=merge-duplicates' },
+        body: JSON.stringify(clients)
+      });
+    }
+
+    if (Array.isArray(notes) && notes.length > 0) {
+      await supabaseFetch('/notes', {
+        method: 'POST',
+        headers: { 'Prefer': 'resolution=merge-duplicates' },
+        body: JSON.stringify(notes)
+      });
+    }
+
     res.json({ success: true, clients_count: clients.length, notes_count: notes ? notes.length : 0 });
   } catch (error) {
-    console.error('Error al restaurar backup:', error);
-    res.status(500).json({ error: 'Error al restaurar la copia de seguridad: ' + error.message });
+    console.error('Error al restaurar en Supabase:', error);
+    res.status(500).json({ error: error.message || 'Error al restaurar copia de seguridad' });
   }
 });
 
 // --- RUTAS API DE NOTAS Y AVISOS ---
 
 // Crear nueva nota/aviso
-app.post('/api/notes', (req, res) => {
+app.post('/api/notes', async (req, res) => {
   try {
     const { client_id, title, content, priority, category, technician_name } = req.body;
     if (!client_id || !title || !content || !technician_name) {
       return res.status(400).json({ error: 'Faltan campos obligatorios (cliente, título, contenido, técnico)' });
     }
 
-    const stmt = db.prepare(`
-      INSERT INTO notes (client_id, title, content, priority, category, status, technician_name)
-      VALUES (?, ?, ?, ?, ?, 'pendiente', ?)
-    `);
-    const result = stmt.run(
-      client_id,
-      title.trim(),
-      content.trim(),
-      priority || 'normal',
-      category || 'general',
-      technician_name.trim()
-    );
+    const newNotes = await supabaseFetch('/notes', {
+      method: 'POST',
+      body: JSON.stringify({
+        client_id,
+        title: title.trim(),
+        content: content.trim(),
+        priority: priority || 'normal',
+        category: category || 'general',
+        status: 'pendiente',
+        technician_name: technician_name.trim()
+      })
+    });
 
-    const newNote = db.prepare('SELECT * FROM notes WHERE id = ?').get(result.lastInsertRowid);
-    res.status(201).json(newNote);
+    res.status(201).json(newNotes[0]);
   } catch (error) {
-    console.error('Error al crear nota:', error);
-    res.status(500).json({ error: 'Error interno del servidor' });
+    console.error('Error al crear nota en Supabase:', error);
+    res.status(500).json({ error: error.message || 'Error interno del servidor' });
   }
 });
 
 // Editar/Actualizar nota/aviso existente
-app.put('/api/notes/:id', (req, res) => {
+app.put('/api/notes/:id', async (req, res) => {
   try {
     const { title, content, priority, category, technician_name } = req.body;
     if (!title || !content || !technician_name) {
       return res.status(400).json({ error: 'Faltan campos obligatorios' });
     }
 
-    const stmt = db.prepare(`
-      UPDATE notes 
-      SET title = ?, content = ?, priority = ?, category = ?, technician_name = ?
-      WHERE id = ?
-    `);
-    stmt.run(title.trim(), content.trim(), priority || 'normal', category || 'general', technician_name.trim(), req.params.id);
+    const updatedNotes = await supabaseFetch(`/notes?id=eq.${req.params.id}`, {
+      method: 'PATCH',
+      body: JSON.stringify({
+        title: title.trim(),
+        content: content.trim(),
+        priority: priority || 'normal',
+        category: category || 'general',
+        technician_name: technician_name.trim()
+      })
+    });
 
-    const updated = db.prepare('SELECT * FROM notes WHERE id = ?').get(req.params.id);
-    res.json(updated);
+    res.json(updatedNotes[0]);
   } catch (error) {
-    console.error('Error al actualizar nota:', error);
-    res.status(500).json({ error: 'Error interno del servidor' });
+    console.error('Error al actualizar nota en Supabase:', error);
+    res.status(500).json({ error: error.message || 'Error interno del servidor' });
   }
 });
 
 // Marcar nota como completada / resuelta
-app.put('/api/notes/:id/complete', (req, res) => {
+app.put('/api/notes/:id/complete', async (req, res) => {
   try {
     const { resolved_by, resolution_comment } = req.body;
     if (!resolved_by || !resolved_by.trim()) {
       return res.status(400).json({ error: 'Debe indicar el nombre del técnico que resuelve la nota' });
     }
 
-    const stmt = db.prepare(`
-      UPDATE notes 
-      SET status = 'completado',
-          resolved_by = ?,
-          resolved_at = CURRENT_TIMESTAMP,
-          resolution_comment = ?
-      WHERE id = ?
-    `);
-    stmt.run(resolved_by.trim(), resolution_comment ? resolution_comment.trim() : '', req.params.id);
+    const updatedNotes = await supabaseFetch(`/notes?id=eq.${req.params.id}`, {
+      method: 'PATCH',
+      body: JSON.stringify({
+        status: 'completado',
+        resolved_by: resolved_by.trim(),
+        resolved_at: new Date().toISOString(),
+        resolution_comment: resolution_comment ? resolution_comment.trim() : ''
+      })
+    });
 
-    const updated = db.prepare('SELECT * FROM notes WHERE id = ?').get(req.params.id);
-    res.json(updated);
+    res.json(updatedNotes[0]);
   } catch (error) {
-    console.error('Error al completar nota:', error);
-    res.status(500).json({ error: 'Error interno del servidor' });
+    console.error('Error al completar nota en Supabase:', error);
+    res.status(500).json({ error: error.message || 'Error interno del servidor' });
   }
 });
 
 // Reabrir nota
-app.put('/api/notes/:id/reopen', (req, res) => {
+app.put('/api/notes/:id/reopen', async (req, res) => {
   try {
-    const stmt = db.prepare(`
-      UPDATE notes 
-      SET status = 'pendiente', resolved_by = NULL, resolved_at = NULL, resolution_comment = NULL
-      WHERE id = ?
-    `);
-    stmt.run(req.params.id);
-    const updated = db.prepare('SELECT * FROM notes WHERE id = ?').get(req.params.id);
-    res.json(updated);
+    const updatedNotes = await supabaseFetch(`/notes?id=eq.${req.params.id}`, {
+      method: 'PATCH',
+      body: JSON.stringify({
+        status: 'pendiente',
+        resolved_by: null,
+        resolved_at: null,
+        resolution_comment: null
+      })
+    });
+
+    res.json(updatedNotes[0]);
   } catch (error) {
-    console.error('Error al reabrir nota:', error);
-    res.status(500).json({ error: 'Error interno del servidor' });
+    console.error('Error al reabrir nota en Supabase:', error);
+    res.status(500).json({ error: error.message || 'Error interno del servidor' });
   }
 });
 
 // Eliminar nota
-app.delete('/api/notes/:id', (req, res) => {
+app.delete('/api/notes/:id', async (req, res) => {
   try {
-    db.prepare('DELETE FROM notes WHERE id = ?').run(req.params.id);
+    await supabaseFetch(`/notes?id=eq.${req.params.id}`, {
+      method: 'DELETE'
+    });
     res.json({ success: true });
   } catch (error) {
-    console.error('Error al eliminar nota:', error);
-    res.status(500).json({ error: 'Error interno del servidor' });
+    console.error('Error al eliminar nota en Supabase:', error);
+    res.status(500).json({ error: error.message || 'Error interno del servidor' });
   }
 });
 
-// Detectar y servir la carpeta dist del frontend
+// Servir la carpeta dist del frontend
 const possibleDistPaths = [
   path.resolve('dist'),
   path.join(__dirname, 'dist'),
@@ -369,9 +371,9 @@ app.get('*', (req, res, next) => {
   if (fs.existsSync(indexPath)) {
     return res.sendFile(indexPath);
   }
-  res.status(200).send('API de TechNotes activa en puerto ' + PORT);
+  res.status(200).send('API de TechNotes activa conectada a Supabase Cloud en puerto ' + PORT);
 });
 
 app.listen(PORT, () => {
-  console.log(`🚀 Servidor TechNotes activo en puerto ${PORT}`);
+  console.log(`🚀 Servidor TechNotes activo y conectado a Supabase Cloud en puerto ${PORT}`);
 });

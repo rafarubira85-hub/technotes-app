@@ -62,11 +62,13 @@ app.get('/api/clients', async (req, res) => {
       const notes = client.notes || [];
       const pendingNotes = notes.filter(n => n.status === 'pendiente');
       const urgentNotes = pendingNotes.filter(n => n.priority === 'alta');
+      const completedNotes = notes.filter(n => n.status === 'completado');
 
       return {
         ...client,
         pending_notes_count: pendingNotes.length,
-        urgent_notes_count: urgentNotes.length
+        urgent_notes_count: urgentNotes.length,
+        completed_notes_count: completedNotes.length
       };
     });
 
@@ -207,6 +209,7 @@ app.post('/api/restore', async (req, res) => {
       return res.status(400).json({ error: 'El archivo de copia de seguridad no es válido' });
     }
 
+    // Insertar/Restaurar clientes
     if (clients.length > 0) {
       await supabaseFetch('/clients', {
         method: 'POST',
@@ -215,6 +218,7 @@ app.post('/api/restore', async (req, res) => {
       });
     }
 
+    // Insertar/Restaurar notas
     if (Array.isArray(notes) && notes.length > 0) {
       await supabaseFetch('/notes', {
         method: 'POST',

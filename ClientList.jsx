@@ -11,12 +11,13 @@ const normalizeText = (text) => {
 };
 
 export default function ClientList({ clients, selectedClientId, onSelectClient, searchTerm, setSearchTerm }) {
-  const [filterType, setFilterType] = useState('all'); // 'all', 'pending', 'urgent'
+  const [filterType, setFilterType] = useState('all'); // 'all', 'pending', 'urgent', 'resueltos'
 
   const filteredClients = clients.filter(client => {
     // Filtro por tipo
     if (filterType === 'pending' && client.pending_notes_count === 0) return false;
     if (filterType === 'urgent' && (!client.urgent_notes_count || client.urgent_notes_count === 0)) return false;
+    if (filterType === 'resueltos' && (!client.completed_notes_count || client.completed_notes_count === 0)) return false;
 
     // Búsqueda por texto
     if (!searchTerm.trim()) return true;
@@ -57,7 +58,7 @@ export default function ClientList({ clients, selectedClientId, onSelectClient, 
         </div>
 
         {/* Filtros rápidos */}
-        <div className="flex items-center space-x-1 text-xs">
+        <div className="flex flex-wrap items-center gap-1.5 text-xs">
           <span className="text-slate-400 font-medium mr-1 flex items-center gap-1">
             <Filter className="w-3 h-3" /> Filtro:
           </span>
@@ -91,6 +92,16 @@ export default function ClientList({ clients, selectedClientId, onSelectClient, 
           >
             Urgentes ({clients.filter(c => c.urgent_notes_count > 0).length})
           </button>
+          <button
+            onClick={() => setFilterType('resueltos')}
+            className={`px-2.5 py-1 rounded-md font-medium transition ${
+              filterType === 'resueltos'
+                ? 'bg-emerald-600 text-white shadow-sm'
+                : 'bg-emerald-50 text-emerald-800 border border-emerald-200 hover:bg-emerald-100'
+            }`}
+          >
+            Resueltos ({clients.filter(c => (c.completed_notes_count || 0) > 0).length})
+          </button>
         </div>
       </div>
 
@@ -106,6 +117,7 @@ export default function ClientList({ clients, selectedClientId, onSelectClient, 
             const isSelected = client.id === selectedClientId;
             const hasUrgent = client.urgent_notes_count > 0;
             const hasPending = client.pending_notes_count > 0;
+            const hasCompleted = (client.completed_notes_count || 0) > 0;
 
             return (
               <button
@@ -141,7 +153,7 @@ export default function ClientList({ clients, selectedClientId, onSelectClient, 
                   )}
 
                   {/* Estado de avisos */}
-                  <div className="pt-1 flex items-center space-x-2">
+                  <div className="pt-1 flex flex-wrap items-center gap-1.5">
                     {hasUrgent ? (
                       <span className="inline-flex items-center space-x-1 text-xs font-semibold bg-rose-100 text-rose-800 px-2 py-0.5 rounded-full border border-rose-300 animate-pulse">
                         <AlertTriangle className="w-3 h-3 text-rose-600" />
@@ -153,9 +165,16 @@ export default function ClientList({ clients, selectedClientId, onSelectClient, 
                         <span>{client.pending_notes_count} aviso(s) pendiente(s)</span>
                       </span>
                     ) : (
-                      <span className="inline-flex items-center space-x-1 text-xs font-medium text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
-                        <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                      <span className="inline-flex items-center space-x-1 text-xs font-medium text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full border border-slate-200">
+                        <CheckCircle2 className="w-3 h-3 text-slate-400" />
                         <span>Sin pendientes</span>
+                      </span>
+                    )}
+
+                    {hasCompleted && (
+                      <span className="inline-flex items-center space-x-1 text-xs font-medium text-emerald-800 bg-emerald-100/90 px-2 py-0.5 rounded-full border border-emerald-300">
+                        <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                        <span>{client.completed_notes_count} resuelto(s)</span>
                       </span>
                     )}
                   </div>

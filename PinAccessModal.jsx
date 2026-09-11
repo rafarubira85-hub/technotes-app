@@ -19,12 +19,10 @@ export default function PinAccessModal({ onAuthenticate }) {
     <div className="fixed inset-0 z-50 bg-slate-950 flex items-center justify-center p-4">
       <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 md:p-8 max-w-md w-full shadow-2xl space-y-6 text-center text-white">
         
-        {/* Icono de Seguridad */}
         <div className="mx-auto bg-sky-600/20 text-sky-400 p-4 rounded-2xl w-16 h-16 flex items-center justify-center border border-sky-500/30">
           <Lock className="w-8 h-8 stroke-[2.2]" />
         </div>
 
-        {/* Título */}
         <div className="space-y-1">
           <h2 className="text-2xl font-black tracking-tight text-white flex items-center justify-center gap-2">
             TechNotes <span className="text-xs bg-sky-500/20 text-sky-300 border border-sky-500/30 px-2 py-0.5 rounded-full uppercase">PRO</span>
@@ -34,7 +32,6 @@ export default function PinAccessModal({ onAuthenticate }) {
           </p>
         </div>
 
-        {/* Formulario de PIN */}
         <form onSubmit={handleSubmit} className="space-y-4">
           {error && (
             <div className="bg-rose-500/10 border border-rose-500/30 text-rose-300 p-3 rounded-xl text-xs font-semibold">

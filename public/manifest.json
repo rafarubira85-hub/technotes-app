@@ -1,0 +1,19 @@
+{
+  "name": "TechNotes PRO - Avisos y Frío",
+  "short_name": "TechNotes",
+  "description": "Gestión de avisos técnicos, clientes, refrigerantes y termostatos para técnicos frigoristas",
+  "start_url": "/",
+  "id": "/",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#0284c7",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

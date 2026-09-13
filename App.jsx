@@ -9,6 +9,7 @@ import EditNoteModal from './EditNoteModal.jsx';
 import CompleteNoteModal from './CompleteNoteModal.jsx';
 import PinAccessModal from './PinAccessModal.jsx';
 import QrModal from './QrModal.jsx';
+import PtCalculatorModal from './PtCalculatorModal.jsx';
 
 export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(() => {
@@ -35,6 +36,39 @@ export default function App() {
   const [isQrOpen, setIsQrOpen] = useState(false);
   const [qrTitle, setQrTitle] = useState('');
   const [qrImageSrc, setQrImageSrc] = useState('');
+
+  // Regla P/T y Selección de avisos
+  const [isPtModalOpen, setIsPtModalOpen] = useState(false);
+  const [selectedNoteId, setSelectedNoteId] = useState(null);
+
+  // PWA Prompt de Instalación
+  const [deferredPrompt, setDeferredPrompt] = useState(null);
+
+  useEffect(() => {
+    const handleBeforeInstall = (e) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+    };
+    window.addEventListener('beforeinstallprompt', handleBeforeInstall);
+    return () => window.removeEventListener('beforeinstallprompt', handleBeforeInstall);
+  }, []);
+
+  const handleInstallPwa = async () => {
+    if (deferredPrompt) {
+      deferredPrompt.prompt();
+      const { outcome } = await deferredPrompt.userChoice;
+      if (outcome === 'accepted') {
+        setDeferredPrompt(null);
+      }
+    } else {
+      alert("📲 Para instalar TechNotes en tu dispositivo:\n\n• En Android / Chrome: Pulsa el menú de 3 puntos (⋮) arriba a la derecha y selecciona 'Instalar aplicación' o 'Añadir a pantalla de inicio'.\n\n• En iPhone / Safari: Pulsa el botón 'Compartir' (el cuadro con la flecha hacia arriba) y selecciona 'Añadir a pantalla de inicio'.");
+    }
+  };
+
+  const handleSelectClient = (clientId, noteId = null) => {
+    setSelectedClientId(clientId);
+    setSelectedNoteId(noteId);
+  };
 
   const handleOpenQr = (title, imageSrc) => {
     setQrTitle(title);
@@ -304,9 +338,11 @@ export default function App() {
         totalPending={totalPendingNotes}
         onRestoreComplete={handleRestoreComplete}
         selectedClientId={selectedClientId}
-        onBackToList={() => setSelectedClientId(null)}
+        onBackToList={() => { setSelectedClientId(null); setSelectedNoteId(null); }}
         onLock={handleLock}
         onOpenQr={handleOpenQr}
+        onOpenPtCalculator={() => setIsPtModalOpen(true)}
+        onInstallPwa={handleInstallPwa}
       />
 
       <main className="max-w-7xl w-full mx-auto p-3 md:p-6 flex-1 grid grid-cols-1 md:grid-cols-12 gap-4">
@@ -314,9 +350,10 @@ export default function App() {
           <ClientList
             clients={clients}
             selectedClientId={selectedClientId}
-            onSelectClient={(id) => setSelectedClientId(id)}
+            onSelectClient={handleSelectClient}
             searchTerm={searchTerm}
             setSearchTerm={setSearchTerm}
+            selectedNoteId={selectedNoteId}
           />
         </div>
 
@@ -330,7 +367,8 @@ export default function App() {
             onOpenEditClient={handleOpenEditClient}
             onDeleteClient={handleDeleteClient}
             onOpenEditNote={handleOpenEditNote}
-            onBack={() => setSelectedClientId(null)}
+            onBack={() => { setSelectedClientId(null); setSelectedNoteId(null); }}
+            selectedNoteId={selectedNoteId}
           />
         </div>
       </main>
@@ -375,6 +413,11 @@ export default function App() {
         onClose={() => setIsQrOpen(false)}
         title={qrTitle}
         imageSrc={qrImageSrc}
+      />
+
+      <PtCalculatorModal
+        isOpen={isPtModalOpen}
+        onClose={() => setIsPtModalOpen(false)}
       />
     </div>
   );

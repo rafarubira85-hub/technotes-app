@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Building2, MapPin, Phone, User, Wrench, AlertTriangle, 
   CheckCircle2, PlusCircle, Clock, ShieldAlert, FileText, Check, ArrowLeft, History, RotateCcw, Trash2, Pencil 
@@ -13,9 +13,24 @@ export default function ClientDetail({
   onOpenEditNote, 
   onOpenEditClient,
   onDeleteClient,
-  onBack 
+  onBack,
+  selectedNoteId 
 }) {
   const [activeTab, setActiveTab] = useState('pending'); // 'pending' or 'history'
+
+  // Si se selecciona un aviso desde el buscador global, cambiar la pestaña activa automáticamente
+  useEffect(() => {
+    if (selectedNoteId && client && Array.isArray(client.notes)) {
+      const foundNote = client.notes.find(n => n.id === selectedNoteId);
+      if (foundNote) {
+        if (foundNote.status === 'completado') {
+          setActiveTab('history');
+        } else {
+          setActiveTab('pending');
+        }
+      }
+    }
+  }, [selectedNoteId, client]);
 
   if (!client) {
     return (
@@ -209,6 +224,8 @@ export default function ClientDetail({
                 <div
                   key={note.id}
                   className={`rounded-xl border p-4 shadow-sm transition space-y-3 ${
+                    note.id === selectedNoteId ? 'ring-2 ring-sky-500 shadow-md ' : ''
+                  }${
                     isHigh 
                       ? 'bg-rose-50/50 border-rose-200 ring-1 ring-rose-200' 
                       : 'bg-amber-50/40 border-amber-200/80'
@@ -281,7 +298,7 @@ export default function ClientDetail({
             </div>
           ) : (
             completedNotes.map((note) => (
-              <div key={note.id} className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-2 opacity-90">
+              <div key={note.id} className={`bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-2 opacity-90 ${note.id === selectedNoteId ? 'ring-2 ring-sky-500 shadow-md !opacity-100' : ''}`}>
                 <div className="flex items-start justify-between">
                   <div>
                     <span className="text-[10px] font-bold bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full">

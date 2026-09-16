@@ -91,16 +91,19 @@ export default function App() {
     localStorage.removeItem('technotes_auth');
   };
 
-  // Cargar lista de clientes
+  // Referencia al ID seleccionado actual para no perderlo en refrescos
+  const selectedClientIdRef = React.useRef(selectedClientId);
+  useEffect(() => {
+    selectedClientIdRef.current = selectedClientId;
+  }, [selectedClientId]);
+
+  // Cargar lista de clientes (sin alterar la selección de pantalla)
   const fetchClients = async () => {
     try {
       const res = await fetch('/api/clients');
       if (!res.ok) throw new Error('Error al cargar clientes');
       const data = await res.json();
       setClients(data);
-      if (data.length > 0 && !selectedClientId) {
-        setSelectedClientId(data[0].id);
-      }
     } catch (err) {
       console.error(err);
     }
@@ -127,23 +130,37 @@ export default function App() {
       localStorage.removeItem('technotes_permanent_backup');
     } catch (e) {}
 
-    fetchClients();
+    // Carga inicial: en PC/tablet (ancho >= 768px) preselecciona el primer cliente; en móvil muestra siempre el listado
+    const initialLoad = async () => {
+      try {
+        const res = await fetch('/api/clients');
+        if (!res.ok) return;
+        const data = await res.json();
+        setClients(data);
+        if (window.innerWidth >= 768 && data.length > 0 && !selectedClientIdRef.current) {
+          setSelectedClientId(data[0].id);
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    };
+    initialLoad();
 
     const handleFocus = () => {
       fetchClients();
-      if (selectedClientId) {
-        fetchClientDetail(selectedClientId);
+      if (selectedClientIdRef.current) {
+        fetchClientDetail(selectedClientIdRef.current);
       }
     };
 
     window.addEventListener('focus', handleFocus);
-    const interval = setInterval(handleFocus, 30000); // Refresca cada 30 segundos
+    const interval = setInterval(handleFocus, 30000); // Refresca cada 30 segundos sin cambiar de pantalla
 
     return () => {
       window.removeEventListener('focus', handleFocus);
       clearInterval(interval);
     };
-  }, [isAuthenticated, selectedClientId]);
+  }, [isAuthenticated]);
 
   useEffect(() => {
     if (isAuthenticated && selectedClientId) {

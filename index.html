@@ -20,7 +20,10 @@
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
           navigator.serviceWorker.register('/sw.js')
-            .then(reg => console.log('✅ Service Worker PWA activo'))
+            .then(reg => {
+              console.log('✅ Service Worker PWA activo');
+              reg.update();
+            })
             .catch(err => console.error('Error al registrar Service Worker:', err));
         });
       }

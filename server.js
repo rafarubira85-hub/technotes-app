@@ -12,6 +12,12 @@ const PORT = process.env.PORT || 3001;
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 
+// Desactivar caché HTTP en navegadores y apps instaladas para asegurar datos en tiempo real
+app.use('/api', (req, res, next) => {
+  res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+  next();
+});
+
 // --- CONFIGURACIÓN DE BASE DE DATOS NUBE (SUPABASE) ---
 const SUPABASE_URL = process.env.SUPABASE_URL || 'https://zhwtnrxfrupvmmextjcp.supabase.co';
 const SUPABASE_KEY = process.env.SUPABASE_KEY || 'sb_publishable_dJ1X7WRiJ3sfYVN78c3hlw_WXhFRU8O';
@@ -368,6 +374,8 @@ if (!distPath) {
 }
 
 app.use(express.static(distPath));
+app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static(__dirname));
 
 app.get('*', (req, res, next) => {
   if (req.path.startsWith('/api')) return next();

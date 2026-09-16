@@ -76,17 +76,6 @@ export default function App() {
     setIsQrOpen(true);
   };
 
-  // Guardar copia permanente en el dispositivo para evitar pérdida por reinicio de Render
-  const saveLocalBackup = async () => {
-    try {
-      const res = await fetch('/api/backup');
-      if (res.ok) {
-        const backupData = await res.json();
-        localStorage.setItem('technotes_permanent_backup', JSON.stringify(backupData));
-      }
-    } catch (err) {}
-  };
-
   // Manejar autenticación por PIN (PIN configurado: 2831)
   const handleAuthenticate = (inputPin) => {
     if (inputPin === '2831') {
@@ -130,49 +119,31 @@ export default function App() {
     }
   };
 
-  // Auto-Sincronización Silenciosa al abrir la app (Restaura notas automáticamente si Render se reinició)
+  // Cargar clientes al iniciar, auto-refrescar en tiempo real y limpiar copias locales obsoletas
   useEffect(() => {
     if (!isAuthenticated) return;
 
-    const autoSyncWithServer = async () => {
-      try {
-        const localBackupStr = localStorage.getItem('technotes_permanent_backup');
-        if (!localBackupStr) {
-          await fetchClients();
-          return;
-        }
+    try {
+      localStorage.removeItem('technotes_permanent_backup');
+    } catch (e) {}
 
-        const localBackup = JSON.parse(localBackupStr);
-        if (!localBackup || !Array.isArray(localBackup.clients)) {
-          await fetchClients();
-          return;
-        }
+    fetchClients();
 
-        // Comprobar clientes en el servidor
-        const res = await fetch('/api/clients');
-        const serverClients = await res.json();
-        
-        const localNotesCount = localBackup.notes ? localBackup.notes.length : 0;
-        const serverNotesCount = serverClients.reduce((acc, c) => acc + (c.pending_notes_count || 0), 0);
-
-        // Si tenemos más notas o clientes guardados en el dispositivo que en el servidor, restaurar silenciosamente
-        if (localNotesCount > serverNotesCount || localBackup.clients.length > serverClients.length) {
-          console.log('🔄 Auto-Sincronizando base de datos permanente...');
-          await fetch('/api/restore', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(localBackup)
-          });
-        }
-      } catch (err) {
-        console.error('AutoSync error:', err);
-      } finally {
-        await fetchClients();
+    const handleFocus = () => {
+      fetchClients();
+      if (selectedClientId) {
+        fetchClientDetail(selectedClientId);
       }
     };
 
-    autoSyncWithServer();
-  }, [isAuthenticated]);
+    window.addEventListener('focus', handleFocus);
+    const interval = setInterval(handleFocus, 30000); // Refresca cada 30 segundos
+
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+      clearInterval(interval);
+    };
+  }, [isAuthenticated, selectedClientId]);
 
   useEffect(() => {
     if (isAuthenticated && selectedClientId) {
@@ -193,7 +164,6 @@ export default function App() {
     if (!res.ok) throw new Error(data.error || 'Error al crear cliente');
     await fetchClients();
     setSelectedClientId(data.id);
-    await saveLocalBackup();
   };
 
   // Actualizar cliente
@@ -209,7 +179,6 @@ export default function App() {
     if (selectedClientId === clientId) {
       await fetchClientDetail(clientId);
     }
-    await saveLocalBackup();
   };
 
   // Eliminar cliente
@@ -221,7 +190,6 @@ export default function App() {
         setSelectedClientId(null);
         setSelectedClient(null);
         await fetchClients();
-        await saveLocalBackup();
       }
     } catch (err) {
       console.error('Error al eliminar cliente:', err);
@@ -246,7 +214,6 @@ export default function App() {
     if (selectedClientId === noteData.client_id) {
       await fetchClientDetail(noteData.client_id);
     }
-    await saveLocalBackup();
   };
 
   const handleOpenAddNote = (clientId) => {
@@ -272,7 +239,6 @@ export default function App() {
     if (selectedClientId) {
       await fetchClientDetail(selectedClientId);
     }
-    await saveLocalBackup();
   };
 
   // Resolver nota
@@ -288,7 +254,6 @@ export default function App() {
     if (selectedClientId) {
       await fetchClientDetail(selectedClientId);
     }
-    await saveLocalBackup();
   };
 
   const handleOpenCompleteNote = (note) => {
@@ -302,7 +267,6 @@ export default function App() {
     if (res.ok) {
       await fetchClients();
       if (selectedClientId) await fetchClientDetail(selectedClientId);
-      await saveLocalBackup();
     }
   };
 
@@ -313,14 +277,12 @@ export default function App() {
     if (res.ok) {
       await fetchClients();
       if (selectedClientId) await fetchClientDetail(selectedClientId);
-      await saveLocalBackup();
     }
   };
 
   const handleRestoreComplete = async () => {
     await fetchClients();
     if (selectedClientId) await fetchClientDetail(selectedClientId);
-    await saveLocalBackup();
   };
 
   const totalPendingNotes = clients.reduce((acc, c) => acc + (c.pending_notes_count || 0), 0);
@@ -357,7 +319,7 @@ export default function App() {
           />
         </div>
 
-        <div className={`md:col-span-7 lg:col-span-8 ${!selectedClientId ? 'hidden md:block' : 'block'}`}>
+        <div className={`md:col-span-7 lg:col-span-8 ${selectedClientId ? 'block' : 'hidden md:block'}`}>
           <ClientDetail
             client={selectedClient}
             onOpenAddNote={handleOpenAddNote}

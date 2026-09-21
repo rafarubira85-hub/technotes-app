@@ -1,5 +1,8 @@
 import React, { useRef } from 'react';
-import { Wrench, Plus, Users, AlertCircle, Download, Upload, List, Lock, QrCode, FolderOpen, Gauge, Smartphone, Package } from 'lucide-react';
+import { 
+  Wrench, Plus, Users, AlertCircle, Download, Upload, List, 
+  Lock, QrCode, FolderOpen, Gauge, Smartphone, Package, Truck, Building2 
+} from 'lucide-react';
 import { QR_ALFAFAR, QR_VALENCIA } from './qrData.js';
 
 // Enlace directo a la carpeta compartida de OneDrive / SharePoint para DOCUMENTACIÓN
@@ -8,7 +11,19 @@ const ONEDRIVE_URL = "https://eptait-my.sharepoint.com/:f:/g/personal/rafael_rub
 // Enlace directo al archivo de Control de Inventario en SharePoint / Excel
 const INVENTARIO_URL = "https://eptait-my.sharepoint.com/:x:/r/personal/adriancoronado_coronado_epta-iberia_com/_layouts/15/Doc.aspx?sourcedoc=%7B73864401-F7E7-4748-B537-4F363D2B2017%7D&file=Control_Inventario_UNIFICADO.xlsx&fromShare=true&action=default&mobileredirect=true";
 
-export default function Header({ onOpenAddClient, totalClients, totalPending, onRestoreComplete, selectedClientId, onBackToList, onLock, onOpenQr, onOpenPtCalculator, onInstallPwa }) {
+export default function Header({ 
+  onOpenAddClient, 
+  totalClients, 
+  totalPending, 
+  onRestoreComplete, 
+  selectedClientId, 
+  onBackToList, 
+  onLock, 
+  onOpenQr, 
+  onOpenPtCalculator, 
+  onInstallPwa,
+  onOpenInfo
+}) {
   const fileInputRef = useRef(null);
 
   const handleExportBackup = () => {
@@ -103,7 +118,7 @@ export default function Header({ onOpenAddClient, totalClients, totalPending, on
 
         {/* Fila 2: Botones de acceso rápido */}
         <div className="flex flex-col md:flex-row items-stretch md:items-center gap-1.5 w-full md:w-auto py-0.5">
-          {/* Fila superior de botones: Clientes (en móvil) + QR VALENCIA + QR ALFAFAR */}
+          {/* Fila superior de botones: Clientes (móvil) + QR VALENCIA + QR ALFAFAR */}
           <div className="flex items-center gap-1.5 w-full md:w-auto">
             {selectedClientId && (
               <button
@@ -135,7 +150,7 @@ export default function Header({ onOpenAddClient, totalClients, totalPending, on
             </button>
           </div>
 
-          {/* Fila inferior: CÓDIGO REFRIGERANTE, ONE DRIVE, INVENTARIO, REGLA P/T e INSTALAR APP */}
+          {/* Fila inferior: CÓDIGO REFRIGERANTE, ONE DRIVE, INVENTARIO, REGLA P/T, INSTALAR APP, NACEX y DIRECCIÓN EPTA */}
           <div className="flex items-center gap-1.5 w-full md:w-auto flex-wrap">
             <button
               onClick={() => onOpenQr('CÓDIGO REFRIGERANTE', 'refrigerante')}
@@ -185,10 +200,30 @@ export default function Header({ onOpenAddClient, totalClients, totalPending, on
               <Smartphone className="w-3.5 h-3.5 text-indigo-400" />
               <span>INSTALAR APP</span>
             </button>
+
+            {/* Botón NACEX */}
+            <button
+              onClick={() => onOpenInfo && onOpenInfo('nacex')}
+              className="flex-1 md:flex-initial inline-flex items-center justify-center space-x-1 text-xs bg-orange-500/20 hover:bg-orange-500/30 text-orange-300 font-bold px-2.5 py-1.5 rounded-lg border border-orange-500/40 transition active:scale-95 shadow-sm"
+              title="Número de abonado NACEX"
+            >
+              <Truck className="w-3.5 h-3.5 text-orange-400" />
+              <span>NACEX</span>
+            </button>
+
+            {/* Botón Dirección Epta */}
+            <button
+              onClick={() => onOpenInfo && onOpenInfo('epta')}
+              className="flex-1 md:flex-initial inline-flex items-center justify-center space-x-1 text-xs bg-blue-600/25 hover:bg-blue-600/35 text-blue-200 font-bold px-2.5 py-1.5 rounded-lg border border-blue-400/40 transition active:scale-95 shadow-sm"
+              title="Dirección y CIF Epta Iberia"
+            >
+              <Building2 className="w-3.5 h-3.5 text-blue-300" />
+              <span>Dirección Epta</span>
+            </button>
           </div>
         </div>
 
-        {/* Acciones para escritorio */}
+        {/* Acciones para escritorio (md:flex) */}
         <div className="hidden md:flex items-center space-x-2.5">
           <div className="flex items-center space-x-3 bg-slate-800/80 px-3 py-1.5 rounded-lg border border-slate-700/60 text-xs">
             <div className="flex items-center space-x-1.5 text-slate-300">

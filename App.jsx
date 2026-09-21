@@ -10,6 +10,7 @@ import CompleteNoteModal from './CompleteNoteModal.jsx';
 import PinAccessModal from './PinAccessModal.jsx';
 import QrModal from './QrModal.jsx';
 import PtCalculatorModal from './PtCalculatorModal.jsx';
+import InfoModal from './InfoModal.jsx';
 
 export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(() => {
@@ -37,9 +38,10 @@ export default function App() {
   const [qrTitle, setQrTitle] = useState('');
   const [qrImageSrc, setQrImageSrc] = useState('');
 
-  // Regla P/T y Selección de avisos
+  // Regla P/T, Información y Selección de avisos
   const [isPtModalOpen, setIsPtModalOpen] = useState(false);
   const [selectedNoteId, setSelectedNoteId] = useState(null);
+  const [infoModalType, setInfoModalType] = useState(null);
 
   // PWA Prompt de Instalación
   const [deferredPrompt, setDeferredPrompt] = useState(null);
@@ -76,7 +78,7 @@ export default function App() {
     setIsQrOpen(true);
   };
 
-  // Manejar autenticación por PIN (PIN configurado: 2831)
+  // Manejar autenticación por PIN (PIN: 2831)
   const handleAuthenticate = (inputPin) => {
     if (inputPin === '2831') {
       setIsAuthenticated(true);
@@ -91,118 +93,97 @@ export default function App() {
     localStorage.removeItem('technotes_auth');
   };
 
-  // Referencia al ID seleccionado actual para no perderlo en refrescos
-  const selectedClientIdRef = React.useRef(selectedClientId);
-  useEffect(() => {
-    selectedClientIdRef.current = selectedClientId;
-  }, [selectedClientId]);
-
-  // Cargar lista de clientes (sin alterar la selección de pantalla)
+  // Cargar clientes iniciales
   const fetchClients = async () => {
     try {
       const res = await fetch('/api/clients');
-      if (!res.ok) throw new Error('Error al cargar clientes');
-      const data = await res.json();
-      setClients(data);
+      if (res.ok) {
+        const data = await res.json();
+        setClients(data);
+      }
     } catch (err) {
-      console.error(err);
+      console.error('Error al cargar clientes:', err);
     }
   };
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      fetchClients();
+    }
+  }, [isAuthenticated]);
 
   // Cargar detalle del cliente seleccionado
   const fetchClientDetail = async (id) => {
-    if (!id) return;
     try {
       const res = await fetch(`/api/clients/${id}`);
-      if (!res.ok) throw new Error('Error al obtener detalle');
-      const data = await res.json();
-      setSelectedClient(data);
+      if (res.ok) {
+        const data = await res.json();
+        setSelectedClient(data);
+      }
     } catch (err) {
-      console.error(err);
+      console.error('Error al cargar detalle del cliente:', err);
     }
   };
 
-  // Cargar clientes al iniciar, auto-refrescar en tiempo real y limpiar copias locales obsoletas
   useEffect(() => {
-    if (!isAuthenticated) return;
-
-    try {
-      localStorage.removeItem('technotes_permanent_backup');
-    } catch (e) {}
-
-    // Carga inicial: en PC/tablet (ancho >= 768px) preselecciona el primer cliente; en móvil muestra siempre el listado
-    const initialLoad = async () => {
-      try {
-        const res = await fetch('/api/clients');
-        if (!res.ok) return;
-        const data = await res.json();
-        setClients(data);
-        if (window.innerWidth >= 768 && data.length > 0 && !selectedClientIdRef.current) {
-          setSelectedClientId(data[0].id);
-        }
-      } catch (err) {
-        console.error(err);
-      }
-    };
-    initialLoad();
-
-    const handleFocus = () => {
-      fetchClients();
-      if (selectedClientIdRef.current) {
-        fetchClientDetail(selectedClientIdRef.current);
-      }
-    };
-
-    window.addEventListener('focus', handleFocus);
-    const interval = setInterval(handleFocus, 30000); // Refresca cada 30 segundos sin cambiar de pantalla
-
-    return () => {
-      window.removeEventListener('focus', handleFocus);
-      clearInterval(interval);
-    };
-  }, [isAuthenticated]);
-
-  useEffect(() => {
-    if (isAuthenticated && selectedClientId) {
+    if (selectedClientId) {
       fetchClientDetail(selectedClientId);
     } else {
       setSelectedClient(null);
     }
-  }, [selectedClientId, isAuthenticated]);
+  }, [selectedClientId]);
 
-  // Guardar nuevo cliente
+  // Acciones de Cliente
   const handleAddClient = async (clientData) => {
-    const res = await fetch('/api/clients', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(clientData),
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Error al crear cliente');
-    await fetchClients();
-    setSelectedClientId(data.id);
-  };
-
-  // Actualizar cliente
-  const handleUpdateClient = async (clientId, updatedData) => {
-    const res = await fetch(`/api/clients/${clientId}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(updatedData),
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Error al actualizar');
-    await fetchClients();
-    if (selectedClientId === clientId) {
-      await fetchClientDetail(clientId);
+    try {
+      const res = await fetch('/api/clients', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(clientData),
+      });
+      if (res.ok) {
+        const newClient = await res.json();
+        await fetchClients();
+        setSelectedClientId(newClient.id);
+        setIsAddClientOpen(false);
+      }
+    } catch (err) {
+      console.error('Error al crear cliente:', err);
     }
   };
 
-  // Eliminar cliente
-  const handleDeleteClient = async (client) => {
-    if (!window.confirm(`¿Está seguro de eliminar el cliente "${client.name}"? Se borrarán también todos sus avisos.`)) return;
+  const handleOpenEditClient = (client) => {
+    setClientToEdit(client);
+    setIsEditClientOpen(true);
+  };
+
+  const handleUpdateClient = async (updatedData) => {
     try {
-      const res = await fetch(`/api/clients/${client.id}`, { method: 'DELETE' });
+      const res = await fetch(`/api/clients/${clientToEdit.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updatedData),
+      });
+      if (res.ok) {
+        await fetchClients();
+        await fetchClientDetail(clientToEdit.id);
+        setIsEditClientOpen(false);
+        setClientToEdit(null);
+      }
+    } catch (err) {
+      console.error('Error al actualizar cliente:', err);
+    }
+  };
+
+  const handleDeleteClient = async (clientId) => {
+    if (!window.confirm('¿Está seguro de eliminar este cliente y todas sus notas asociadas? Esta acción no se puede deshacer.')) {
+      return;
+    }
+
+    try {
+      const res = await fetch(`/api/clients/${clientId}`, {
+        method: 'DELETE',
+      });
       if (res.ok) {
         setSelectedClientId(null);
         setSelectedClient(null);
@@ -213,63 +194,53 @@ export default function App() {
     }
   };
 
-  const handleOpenEditClient = (client) => {
-    setClientToEdit(client);
-    setIsEditClientOpen(true);
-  };
-
-  // Guardar nota
-  const handleAddNote = async (noteData) => {
-    const res = await fetch('/api/notes', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(noteData),
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Error al guardar nota');
-    await fetchClients();
-    if (selectedClientId === noteData.client_id) {
-      await fetchClientDetail(noteData.client_id);
-    }
-  };
-
+  // Acciones de Notas
   const handleOpenAddNote = (clientId) => {
     setAddNoteClientId(clientId);
     setIsAddNoteOpen(true);
   };
 
-  // Editar nota
+  const handleAddNote = async (noteData) => {
+    try {
+      const res = await fetch('/api/notes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(noteData),
+      });
+      if (res.ok) {
+        await fetchClients();
+        if (selectedClientId) {
+          await fetchClientDetail(selectedClientId);
+        }
+        setIsAddNoteOpen(false);
+      }
+    } catch (err) {
+      console.error('Error al crear nota:', err);
+    }
+  };
+
   const handleOpenEditNote = (note) => {
     setNoteToEdit(note);
     setIsEditNoteOpen(true);
   };
 
-  const handleUpdateNote = async (noteId, updatedData) => {
-    const res = await fetch(`/api/notes/${noteId}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(updatedData),
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Error al actualizar nota');
-    await fetchClients();
-    if (selectedClientId) {
-      await fetchClientDetail(selectedClientId);
-    }
-  };
-
-  // Resolver nota
-  const handleCompleteNote = async (noteId, completionData) => {
-    const res = await fetch(`/api/notes/${noteId}/complete`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(completionData),
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Error al completar nota');
-    await fetchClients();
-    if (selectedClientId) {
-      await fetchClientDetail(selectedClientId);
+  const handleUpdateNote = async (updatedNoteData) => {
+    try {
+      const res = await fetch(`/api/notes/${noteToEdit.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updatedNoteData),
+      });
+      if (res.ok) {
+        await fetchClients();
+        if (selectedClientId) {
+          await fetchClientDetail(selectedClientId);
+        }
+        setIsEditNoteOpen(false);
+        setNoteToEdit(null);
+      }
+    } catch (err) {
+      console.error('Error al actualizar nota:', err);
     }
   };
 
@@ -278,22 +249,63 @@ export default function App() {
     setIsCompleteNoteOpen(true);
   };
 
-  // Reabrir nota
-  const handleReopenNote = async (noteId) => {
-    const res = await fetch(`/api/notes/${noteId}/reopen`, { method: 'PUT' });
-    if (res.ok) {
-      await fetchClients();
-      if (selectedClientId) await fetchClientDetail(selectedClientId);
+  const handleCompleteNote = async (resolutionData) => {
+    try {
+      const res = await fetch(`/api/notes/${noteToComplete.id}/complete`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(resolutionData),
+      });
+      if (res.ok) {
+        await fetchClients();
+        if (selectedClientId) {
+          await fetchClientDetail(selectedClientId);
+        }
+        setIsCompleteNoteOpen(false);
+        setNoteToComplete(null);
+      }
+    } catch (err) {
+      console.error('Error al completar nota:', err);
     }
   };
 
-  // Eliminar nota
+  const handleReopenNote = async (noteId) => {
+    if (!window.confirm('¿Desea reabrir esta nota y volver a marcarla como pendiente?')) {
+      return;
+    }
+
+    try {
+      const res = await fetch(`/api/notes/${noteId}/reopen`, {
+        method: 'PATCH',
+      });
+      if (res.ok) {
+        await fetchClients();
+        if (selectedClientId) {
+          await fetchClientDetail(selectedClientId);
+        }
+      }
+    } catch (err) {
+      console.error('Error al reabrir nota:', err);
+    }
+  };
+
   const handleDeleteNote = async (noteId) => {
-    if (!window.confirm('¿Está seguro de eliminar esta nota?')) return;
-    const res = await fetch(`/api/notes/${noteId}`, { method: 'DELETE' });
-    if (res.ok) {
-      await fetchClients();
-      if (selectedClientId) await fetchClientDetail(selectedClientId);
+    if (!window.confirm('¿Está seguro de eliminar esta nota? Esta acción no se puede deshacer.')) {
+      return;
+    }
+
+    try {
+      const res = await fetch(`/api/notes/${noteId}`, {
+        method: 'DELETE',
+      });
+      if (res.ok) {
+        await fetchClients();
+        if (selectedClientId) {
+          await fetchClientDetail(selectedClientId);
+        }
+      }
+    } catch (err) {
+      console.error('Error al eliminar nota:', err);
     }
   };
 
@@ -322,6 +334,7 @@ export default function App() {
         onOpenQr={handleOpenQr}
         onOpenPtCalculator={() => setIsPtModalOpen(true)}
         onInstallPwa={handleInstallPwa}
+        onOpenInfo={(type) => setInfoModalType(type)}
       />
 
       <main className="max-w-7xl w-full mx-auto p-3 md:p-6 flex-1 grid grid-cols-1 md:grid-cols-12 gap-4">
@@ -336,7 +349,7 @@ export default function App() {
           />
         </div>
 
-        <div className={`md:col-span-7 lg:col-span-8 ${selectedClientId ? 'block' : 'hidden md:block'}`}>
+        <div className={`md:col-span-7 lg:col-span-8 ${!selectedClientId ? 'hidden md:block' : 'block'}`}>
           <ClientDetail
             client={selectedClient}
             onOpenAddNote={handleOpenAddNote}
@@ -397,6 +410,12 @@ export default function App() {
       <PtCalculatorModal
         isOpen={isPtModalOpen}
         onClose={() => setIsPtModalOpen(false)}
+      />
+
+      <InfoModal
+        isOpen={!!infoModalType}
+        onClose={() => setInfoModalType(null)}
+        type={infoModalType}
       />
     </div>
   );

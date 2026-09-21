@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Building2, MapPin, Phone, User, Wrench, AlertTriangle, 
-  CheckCircle2, PlusCircle, Clock, ShieldAlert, FileText, Check, ArrowLeft, History, RotateCcw, Trash2, Pencil 
+  CheckCircle2, PlusCircle, Clock, ShieldAlert, FileText, Check, ArrowLeft, History, RotateCcw, Trash2, Pencil, ArrowUpDown
 } from 'lucide-react';
 
 export default function ClientDetail({ 
@@ -17,6 +17,7 @@ export default function ClientDetail({
   selectedNoteId 
 }) {
   const [activeTab, setActiveTab] = useState('pending'); // 'pending' or 'history'
+  const [sortOrder, setSortOrder] = useState('desc'); // 'desc' | 'asc'
 
   // Si se selecciona un aviso desde el buscador global, cambiar la pestaña activa automáticamente
   useEffect(() => {
@@ -44,8 +45,21 @@ export default function ClientDetail({
     );
   }
 
-  const pendingNotes = client.notes ? client.notes.filter(n => n.status === 'pendiente') : [];
-  const completedNotes = client.notes ? client.notes.filter(n => n.status === 'completado') : [];
+  const rawPendingNotes = client.notes ? client.notes.filter(n => n.status === 'pendiente') : [];
+  const rawCompletedNotes = client.notes ? client.notes.filter(n => n.status === 'completado') : [];
+
+  const pendingNotes = [...rawPendingNotes].sort((a, b) => {
+    const dateA = new Date(a.created_at || 0).getTime();
+    const dateB = new Date(b.created_at || 0).getTime();
+    return sortOrder === 'asc' ? dateA - dateB : dateB - dateA;
+  });
+
+  const completedNotes = [...rawCompletedNotes].sort((a, b) => {
+    const dateA = new Date(a.created_at || 0).getTime();
+    const dateB = new Date(b.created_at || 0).getTime();
+    return sortOrder === 'asc' ? dateA - dateB : dateB - dateA;
+  });
+
   const hasUrgent = pendingNotes.some(n => n.priority === 'alta');
 
   const renderCategoryBadge = (cat) => {
@@ -99,54 +113,51 @@ export default function ClientDetail({
                 <span>Volver a la lista</span>
               </button>
             )}
-            <div className="flex items-center space-x-2 flex-wrap gap-y-2">
-              <span className="text-xs font-mono font-bold bg-sky-500/20 text-sky-300 px-2 py-0.5 rounded border border-sky-500/30">
+            <div className="flex items-center space-x-3">
+              <h2 className="text-xl md:text-2xl font-bold tracking-tight text-white">{client.name}</h2>
+              <span className="text-xs font-mono font-bold bg-slate-800 text-sky-300 px-2.5 py-1 rounded-md border border-slate-700">
                 {client.code}
               </span>
-              <h2 className="text-xl md:text-2xl font-bold tracking-tight text-white">{client.name}</h2>
-              
-              {/* Botones Editar y Eliminar Cliente */}
-              <div className="flex items-center space-x-1.5 ml-2">
-                {onOpenEditClient && (
-                  <button
-                    onClick={() => onOpenEditClient(client)}
-                    className="inline-flex items-center space-x-1 text-xs bg-slate-800 hover:bg-slate-700 text-sky-300 hover:text-white font-medium px-2.5 py-1 rounded-lg border border-slate-700 transition"
-                    title="Editar datos del cliente"
-                  >
-                    <Pencil className="w-3.5 h-3.5" />
-                    <span>Editar</span>
-                  </button>
-                )}
-
-                {onDeleteClient && (
-                  <button
-                    onClick={() => onDeleteClient(client)}
-                    className="inline-flex items-center space-x-1 text-xs bg-slate-800 hover:bg-slate-700 text-rose-400 hover:text-rose-300 font-medium px-2.5 py-1 rounded-lg border border-slate-700 transition"
-                    title="Eliminar cliente"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                    <span>Eliminar</span>
-                  </button>
-                )}
-              </div>
             </div>
           </div>
 
-          <button
-            onClick={() => onOpenAddNote(client.id)}
-            className="flex items-center space-x-1.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold px-3 py-2 rounded-lg text-xs md:text-sm shadow-md transition active:scale-95"
-          >
-            <PlusCircle className="w-4 h-4" />
-            <span>Añadir Aviso</span>
-          </button>
+          <div className="flex items-center space-x-1">
+            <button
+              onClick={() => onOpenEditClient(client)}
+              className="p-1.5 text-slate-400 hover:text-white bg-slate-800/80 hover:bg-slate-700 rounded-lg transition"
+              title="Editar datos del cliente"
+            >
+              <Pencil className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => onDeleteClient(client.id)}
+              className="p-1.5 text-slate-400 hover:text-rose-400 bg-slate-800/80 hover:bg-slate-700 rounded-lg transition"
+              title="Eliminar cliente"
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => onOpenAddNote(client.id)}
+              className="flex items-center space-x-1 bg-sky-600 hover:bg-sky-500 text-white font-bold px-3 py-1.5 rounded-lg text-xs shadow-md transition ml-1 active:scale-95"
+            >
+              <PlusCircle className="w-4 h-4" />
+              <span>Nuevo Aviso</span>
+            </button>
+          </div>
         </div>
 
-        {/* Ficha técnica rápida */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 text-xs pt-2 border-t border-slate-800 text-slate-300">
+        {/* Ficha técnica y datos de contacto */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-2 pt-2 border-t border-slate-800 text-xs text-slate-300">
           {client.address && (
             <div className="flex items-center space-x-1.5">
               <MapPin className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
-              <span className="truncate">{client.address}</span>
+              <span>{client.address}</span>
+            </div>
+          )}
+          {client.equipment_info && (
+            <div className="flex items-center space-x-1.5">
+              <Wrench className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
+              <span>Instalación: <strong>{client.equipment_info}</strong></span>
             </div>
           )}
           {client.phone && (
@@ -218,36 +229,50 @@ export default function ClientDetail({
               </button>
             </div>
           ) : (
-            pendingNotes.map((note) => {
-              const isHigh = note.priority === 'alta';
-              return (
-                <div
-                  key={note.id}
-                  className={`rounded-xl border p-4 shadow-sm transition space-y-3 ${
-                    note.id === selectedNoteId ? 'ring-2 ring-sky-500 shadow-md ' : ''
-                  }${
-                    isHigh 
-                      ? 'bg-rose-50/50 border-rose-200 ring-1 ring-rose-200' 
-                      : 'bg-amber-50/40 border-amber-200/80'
+            <div className="space-y-3">
+              <div className="flex items-center justify-between pb-1 text-xs">
+                <span className="text-slate-500 font-medium">Avisos pendientes ({pendingNotes.length}):</span>
+                <button
+                  onClick={() => setSortOrder(prev => prev === 'desc' ? 'asc' : 'desc')}
+                  className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md font-medium text-xs border transition active:scale-95 shadow-xs ${
+                    sortOrder === 'asc'
+                      ? 'bg-amber-100 text-amber-900 border-amber-300'
+                      : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'
                   }`}
+                  title={sortOrder === 'desc' ? 'Orden actual: Más recientes primero (Descendente). Clic para ordenar más antiguos primero (Ascendente).' : 'Orden actual: Más antiguos primero (Ascendente). Clic para ordenar más recientes primero (Descendente).'}
                 >
-                  <div className="flex items-start justify-between">
-                    <div className="space-y-1">
-                      <div className="flex items-center space-x-2 flex-wrap gap-y-1">
-                        <span
-                          className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${
-                            isHigh ? 'bg-rose-600 text-white' : 'bg-amber-500 text-white'
-                          }`}
-                        >
-                          {isHigh ? '🔥 Alta Prioridad' : '⚡ Aviso Pendiente'}
-                        </span>
-                        {renderCategoryBadge(note.category)}
-                      </div>
-                      <h3 className="font-bold text-slate-900 text-base">{note.title}</h3>
-                    </div>
+                  <ArrowUpDown className="w-3.5 h-3.5 text-slate-500" />
+                  <span>{sortOrder === 'desc' ? '📅 Más recientes (Desc)' : '📅 Más antiguos (Asc)'}</span>
+                </button>
+              </div>
 
-                    <div className="flex items-center space-x-1">
-                      {onOpenEditNote && (
+              {pendingNotes.map((note) => {
+                const isHigh = note.priority === 'alta';
+                return (
+                  <div
+                    key={note.id}
+                    className={`rounded-xl border p-4 shadow-sm transition space-y-3 ${
+                      note.id === selectedNoteId ? 'ring-2 ring-sky-500 shadow-md ' : ''
+                    }${
+                      isHigh 
+                        ? 'bg-rose-50/50 border-rose-200 ring-1 ring-rose-200' 
+                        : 'bg-amber-50/40 border-amber-200/80'
+                    }`}
+                  >
+                    <div className="flex items-start justify-between">
+                      <div className="space-y-1">
+                        <div className="flex items-center space-x-2 flex-wrap gap-y-1">
+                          <h4 className="font-bold text-slate-900 text-sm md:text-base">{note.title}</h4>
+                          {renderCategoryBadge(note.category)}
+                          {isHigh && (
+                            <span className="text-[10px] font-black bg-rose-600 text-white px-2 py-0.5 rounded-full animate-pulse shadow-xs">
+                              ¡PRIORIDAD ALTA!
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="flex items-center space-x-1">
                         <button
                           onClick={() => onOpenEditNote(note)}
                           className="text-slate-400 hover:text-sky-600 p-1 transition"
@@ -255,41 +280,41 @@ export default function ClientDetail({
                         >
                           <Pencil className="w-4 h-4" />
                         </button>
-                      )}
+                        <button
+                          onClick={() => onDeleteNote(note.id)}
+                          className="text-slate-400 hover:text-rose-600 p-1 transition"
+                          title="Eliminar aviso"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+
+                    <p className="text-xs md:text-sm text-slate-700 whitespace-pre-line leading-relaxed bg-white/80 p-3 rounded-lg border border-slate-200/60">
+                      {note.content}
+                    </p>
+
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-1 text-xs border-t border-slate-200/60">
+                      <div className="flex items-center space-x-2 text-slate-500">
+                        <User className="w-3.5 h-3.5 text-slate-400" />
+                        <span>Anotado por: <strong className="text-slate-800">{note.technician_name}</strong></span>
+                        <span>•</span>
+                        <Clock className="w-3.5 h-3.5 text-slate-400" />
+                        <span>{new Date(note.created_at).toLocaleDateString('es-ES', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
+                      </div>
+
                       <button
-                        onClick={() => onDeleteNote(note.id)}
-                        className="text-slate-400 hover:text-rose-600 p-1 transition"
-                        title="Eliminar aviso"
+                        onClick={() => onOpenCompleteNote(note)}
+                        className="inline-flex items-center justify-center space-x-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold px-3 py-1.5 rounded-lg text-xs transition shadow-sm active:scale-95"
                       >
-                        <Trash2 className="w-4 h-4" />
+                        <Check className="w-4 h-4" />
+                        <span>Marcar como Atendido</span>
                       </button>
                     </div>
                   </div>
-
-                  <p className="text-xs md:text-sm text-slate-700 whitespace-pre-line leading-relaxed bg-white/80 p-3 rounded-lg border border-slate-200/60">
-                    {note.content}
-                  </p>
-
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-1 text-xs border-t border-slate-200/60">
-                    <div className="flex items-center space-x-2 text-slate-500">
-                      <User className="w-3.5 h-3.5 text-slate-400" />
-                      <span>Anotado por: <strong className="text-slate-800">{note.technician_name}</strong></span>
-                      <span>•</span>
-                      <Clock className="w-3.5 h-3.5 text-slate-400" />
-                      <span>{new Date(note.created_at).toLocaleDateString('es-ES', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
-                    </div>
-
-                    <button
-                      onClick={() => onOpenCompleteNote(note)}
-                      className="inline-flex items-center justify-center space-x-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold px-3 py-1.5 rounded-lg text-xs transition shadow-sm active:scale-95"
-                    >
-                      <Check className="w-4 h-4" />
-                      <span>Marcar como Atendido</span>
-                    </button>
-                  </div>
-                </div>
-              );
-            })
+                );
+              })}
+            </div>
           )
         ) : (
           completedNotes.length === 0 ? (
@@ -297,41 +322,59 @@ export default function ClientDetail({
               <p className="text-sm font-medium">No hay avisos resueltos en el historial</p>
             </div>
           ) : (
-            completedNotes.map((note) => (
-              <div key={note.id} className={`bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-2 opacity-90 ${note.id === selectedNoteId ? 'ring-2 ring-sky-500 shadow-md !opacity-100' : ''}`}>
-                <div className="flex items-start justify-between">
-                  <div>
-                    <span className="text-[10px] font-bold bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full">
-                      ✓ RESUELTO
-                    </span>
-                    <h4 className="font-semibold text-slate-800 text-sm mt-1 line-through decoration-slate-400">{note.title}</h4>
-                  </div>
-                  <button
-                    onClick={() => onReopenNote(note.id)}
-                    className="text-xs text-sky-600 hover:text-sky-700 font-medium flex items-center space-x-1 bg-sky-50 px-2 py-1 rounded border border-sky-200"
-                    title="Reabrir nota"
-                  >
-                    <RotateCcw className="w-3 h-3" />
-                    <span>Reabrir</span>
-                  </button>
-                </div>
-
-                <p className="text-xs text-slate-600 bg-white p-2.5 rounded border border-slate-200">
-                  {note.content}
-                </p>
-
-                {note.resolution_comment && (
-                  <div className="text-xs bg-emerald-50 text-emerald-900 p-2.5 rounded border border-emerald-200">
-                    <strong>Comentario de resolución:</strong> {note.resolution_comment}
-                  </div>
-                )}
-
-                <div className="flex items-center justify-between text-[11px] text-slate-400 pt-1">
-                  <span>Nota original: <strong>{note.technician_name}</strong></span>
-                  <span>Atendido por: <strong className="text-slate-700">{note.resolved_by}</strong> ({new Date(note.resolved_at).toLocaleDateString('es-ES')})</span>
-                </div>
+            <div className="space-y-3">
+              <div className="flex items-center justify-between pb-1 text-xs">
+                <span className="text-slate-500 font-medium">Historial resuelto ({completedNotes.length}):</span>
+                <button
+                  onClick={() => setSortOrder(prev => prev === 'desc' ? 'asc' : 'desc')}
+                  className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md font-medium text-xs border transition active:scale-95 shadow-xs ${
+                    sortOrder === 'asc'
+                      ? 'bg-amber-100 text-amber-900 border-amber-300'
+                      : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'
+                  }`}
+                  title={sortOrder === 'desc' ? 'Orden actual: Más recientes primero (Descendente). Clic para ordenar más antiguos primero (Ascendente).' : 'Orden actual: Más antiguos primero (Ascendente). Clic para ordenar más recientes primero (Descendente).'}
+                >
+                  <ArrowUpDown className="w-3.5 h-3.5 text-slate-500" />
+                  <span>{sortOrder === 'desc' ? '📅 Más recientes (Desc)' : '📅 Más antiguos (Asc)'}</span>
+                </button>
               </div>
-            ))
+
+              {completedNotes.map((note) => (
+                <div key={note.id} className={`bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-2 opacity-90 ${note.id === selectedNoteId ? 'ring-2 ring-sky-500 shadow-md !opacity-100' : ''}`}>
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <span className="text-[10px] font-bold bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full">
+                        ✓ RESUELTO
+                      </span>
+                      <h4 className="font-semibold text-slate-800 text-sm mt-1 line-through decoration-slate-400">{note.title}</h4>
+                    </div>
+                    <button
+                      onClick={() => onReopenNote(note.id)}
+                      className="text-xs text-sky-600 hover:text-sky-700 font-medium flex items-center space-x-1 bg-sky-50 px-2 py-1 rounded border border-sky-200"
+                      title="Reabrir nota"
+                    >
+                      <RotateCcw className="w-3 h-3" />
+                      <span>Reabrir</span>
+                    </button>
+                  </div>
+
+                  <p className="text-xs text-slate-600 bg-white p-2.5 rounded border border-slate-200">
+                    {note.content}
+                  </p>
+
+                  {note.resolution_comment && (
+                    <div className="text-xs bg-emerald-50 text-emerald-900 p-2.5 rounded border border-emerald-200">
+                      <strong>Comentario de resolución:</strong> {note.resolution_comment}
+                    </div>
+                  )}
+
+                  <div className="flex items-center justify-between text-[11px] text-slate-400 pt-1">
+                    <span>Nota original: <strong>{note.technician_name}</strong></span>
+                    <span>Atendido por: <strong className="text-slate-700">{note.resolved_by}</strong> ({new Date(note.resolved_at).toLocaleDateString('es-ES')})</span>
+                  </div>
+                </div>
+              ))}
+            </div>
           )
         )}
       </div>

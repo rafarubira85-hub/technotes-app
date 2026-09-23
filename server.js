@@ -296,12 +296,20 @@ app.put('/api/notes/:id', async (req, res) => {
   }
 });
 
-// Marcar nota como completada / resuelta
-app.put('/api/notes/:id/complete', async (req, res) => {
+// Marcar nota como completada / resuelta (soporta PUT y PATCH, y fecha personalizada)
+const handleCompleteNoteRoute = async (req, res) => {
   try {
-    const { resolved_by, resolution_comment } = req.body;
+    const { resolved_by, resolution_comment, resolved_at } = req.body;
     if (!resolved_by || !resolved_by.trim()) {
       return res.status(400).json({ error: 'Debe indicar el nombre del técnico que resuelve la nota' });
+    }
+
+    let resolvedAtIso = new Date().toISOString();
+    if (resolved_at) {
+      const d = new Date(resolved_at);
+      if (!isNaN(d.getTime())) {
+        resolvedAtIso = d.toISOString();
+      }
     }
 
     const updatedNotes = await supabaseFetch(`/notes?id=eq.${req.params.id}`, {
@@ -309,17 +317,20 @@ app.put('/api/notes/:id/complete', async (req, res) => {
       body: JSON.stringify({
         status: 'completado',
         resolved_by: resolved_by.trim(),
-        resolved_at: new Date().toISOString(),
-        resolution_comment: resolution_comment ? resolution_comment.trim() : ''
+        resolved_at: resolvedAtIso,
+        resolution_comment: resolutionComment ? resolutionComment.trim() : (resolution_comment ? resolution_comment.trim() : '')
       })
     });
 
-    res.json(updatedNotes[0]);
+    res.json(updatedNotes && updatedNotes[0] ? updatedNotes[0] : { success: true });
   } catch (error) {
     console.error('Error al completar nota en Supabase:', error);
     res.status(500).json({ error: error.message || 'Error interno del servidor' });
   }
-});
+};
+
+app.put('/api/notes/:id/complete', handleCompleteNoteRoute);
+app.patch('/api/notes/:id/complete', handleCompleteNoteRoute);
 
 // Reabrir nota
 app.put('/api/notes/:id/reopen', async (req, res) => {

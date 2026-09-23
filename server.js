@@ -299,7 +299,7 @@ app.put('/api/notes/:id', async (req, res) => {
 // Marcar nota como completada / resuelta (soporta PUT y PATCH, y fecha personalizada)
 const handleCompleteNoteRoute = async (req, res) => {
   try {
-    const { resolved_by, resolution_comment, resolved_at } = req.body;
+    const { resolved_by, resolution_comment, resolutionComment, resolved_at } = req.body;
     if (!resolved_by || !resolved_by.trim()) {
       return res.status(400).json({ error: 'Debe indicar el nombre del técnico que resuelve la nota' });
     }
@@ -312,13 +312,15 @@ const handleCompleteNoteRoute = async (req, res) => {
       }
     }
 
+    const finalComment = (resolution_comment || resolutionComment || '').trim();
+
     const updatedNotes = await supabaseFetch(`/notes?id=eq.${req.params.id}`, {
       method: 'PATCH',
       body: JSON.stringify({
         status: 'completado',
         resolved_by: resolved_by.trim(),
         resolved_at: resolvedAtIso,
-        resolution_comment: resolutionComment ? resolutionComment.trim() : (resolution_comment ? resolution_comment.trim() : '')
+        resolution_comment: finalComment
       })
     });
 

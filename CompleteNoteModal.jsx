@@ -1,8 +1,26 @@
 import React, { useState } from 'react';
-import { X, CheckCircle2, User, MessageSquare } from 'lucide-react';
+import { X, CheckCircle2, User, MessageSquare, Calendar } from 'lucide-react';
+
+const getTodayStr = () => {
+  const d = new Date();
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+const getYesterdayStr = () => {
+  const d = new Date();
+  d.setDate(d.getDate() - 1);
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
 
 export default function CompleteNoteModal({ isOpen, onClose, note, onCompleteNote }) {
   const [resolvedBy, setResolvedBy] = useState(localStorage.getItem('tech_name') || '');
+  const [resolvedDate, setResolvedDate] = useState(() => getTodayStr());
   const [resolutionComment, setResolutionComment] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
@@ -16,15 +34,29 @@ export default function CompleteNoteModal({ isOpen, onClose, note, onCompleteNot
       return;
     }
 
+    if (!resolvedDate) {
+      setError('Por favor seleccione la fecha de realización');
+      return;
+    }
+
     localStorage.setItem('tech_name', resolvedBy.trim());
 
     setIsSubmitting(true);
     setError('');
 
     try {
+      // Construir timestamp ISO a partir de la fecha seleccionada
+      const [y, m, d] = resolvedDate.split('-').map(Number);
+      const now = new Date();
+      const completionDateTime = new Date(y, m - 1, d, now.getHours(), now.getMinutes(), now.getSeconds());
+      const resolvedAtIso = isNaN(completionDateTime.getTime()) 
+        ? new Date().toISOString() 
+        : completionDateTime.toISOString();
+
       await onCompleteNote(note.id, {
         resolved_by: resolvedBy.trim(),
-        resolution_comment: resolutionComment.trim()
+        resolution_comment: resolutionComment.trim(),
+        resolved_at: resolvedAtIso
       });
       setResolutionComment('');
       onClose();
@@ -63,6 +95,46 @@ export default function CompleteNoteModal({ isOpen, onClose, note, onCompleteNot
             <span className="text-[10px] uppercase font-bold text-slate-500">Aviso seleccionado:</span>
             <p className="font-bold text-slate-800 text-sm mt-0.5">{note.title}</p>
             <p className="text-xs text-slate-600 mt-1 line-clamp-2">{note.content}</p>
+          </div>
+
+          {/* Selector de Fecha de Realización */}
+          <div>
+            <div className="flex items-center justify-between mb-1">
+              <label className="font-semibold text-slate-700 flex items-center gap-1">
+                <Calendar className="w-3.5 h-3.5 text-emerald-600" /> Fecha del trabajo:
+              </label>
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={() => setResolvedDate(getTodayStr())}
+                  className={`px-2 py-0.5 text-[11px] rounded font-medium border transition ${
+                    resolvedDate === getTodayStr()
+                      ? 'bg-emerald-100 text-emerald-800 border-emerald-300 font-bold'
+                      : 'bg-slate-100 text-slate-600 border-slate-200 hover:bg-slate-200'
+                  }`}
+                >
+                  Hoy
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setResolvedDate(getYesterdayStr())}
+                  className={`px-2 py-0.5 text-[11px] rounded font-medium border transition ${
+                    resolvedDate === getYesterdayStr()
+                      ? 'bg-emerald-100 text-emerald-800 border-emerald-300 font-bold'
+                      : 'bg-slate-100 text-slate-600 border-slate-200 hover:bg-slate-200'
+                  }`}
+                >
+                  Ayer
+                </button>
+              </div>
+            </div>
+            <input
+              type="date"
+              value={resolvedDate}
+              onChange={(e) => setResolvedDate(e.target.value)}
+              className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:bg-white outline-none font-medium text-slate-800"
+              required
+            />
           </div>
 
           <div>
